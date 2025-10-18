@@ -1,5 +1,10 @@
 pub mod session;
+pub mod user;
 
+
+use log::{
+    info
+};
 
 use serde::{
     Serialize,
@@ -46,6 +51,7 @@ impl ApiResponse {
 
 
 pub async fn default_option_response() -> impl Responder {
+    info!("default_option_response");
     return HttpResponse::Ok()
         // .append_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "*"))
         .finish();

@@ -17,3 +17,7 @@ actix-web = { version="4", features=["openssl"] }
 actix-http = "*"
 
 futures = "*"
+
+
+# projects
+db_provider = { path = "../libs/db_provider" }

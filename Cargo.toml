@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
+    "libs/db_provider",
     "libs/jwt",
+    "libs/user_registration",
     "ws"
 ]
