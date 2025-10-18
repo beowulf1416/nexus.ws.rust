@@ -1,5 +1,5 @@
 use actix_http::header::HeaderValue;
-use log::{
+use tracing::{
     error,
     info,
     warn,

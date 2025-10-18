@@ -2,7 +2,7 @@ pub mod session;
 pub mod user;
 
 
-use log::{
+use tracing::{
     info
 };
 

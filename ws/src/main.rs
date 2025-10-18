@@ -1,13 +1,17 @@
-extern crate log;
+extern crate tracing;
 
 mod extractors;
 mod middleware;
 mod endpoints;
 
-use log::{
+use tracing::{
     info,
+    error,
     debug
 };
+
+
+use serde::Deserialize;
 
 use actix_web::{
     web,
@@ -17,9 +21,31 @@ use actix_web::{
 
 
 
+#[derive(Debug, Deserialize)]
+struct Config {
+    http_port: Option<u16>,
+    cn: Option<Vec<String>>
+}
+
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
+
+    // let mut builder = Builder::from_default_env();
+    // builder.target(Target::Stdout);
+    // builder.init();
+
+    info!("Starting server...");
+
+    match envy::from_env::<Config>() {
+        Ok(config) => {
+            debug!("Configuration: {:?}", config);
+        }
+        Err(error) => {
+            error!("Failed to load configuration from environment: {:?}", error);
+        }
+    }
 
     let mut http_server = HttpServer::new(move || {
         let app = App::new()

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
+members = ["libs/database_provider",
     "libs/db_provider",
     "libs/jwt",
     "libs/user_registration",
