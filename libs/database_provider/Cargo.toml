@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 tracing = "*"
 
-sqlx  = { version="*", features=["postgres"] }
+sqlx  = { version="*", features=["runtime-tokio", "postgres"] }
 
 
 

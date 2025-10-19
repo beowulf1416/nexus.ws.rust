@@ -1,6 +1,8 @@
 use tracing::{
-    info
+    info,
+    error
 };
+use std::sync::Arc;
 
 use serde::{
     Serialize,
@@ -24,6 +26,7 @@ use crate::endpoints::{
 
 
 
+
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
         .service(
@@ -42,13 +45,42 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
 #[derive(Debug, Deserialize)]
 struct UserRegistrationSignUpPost {
+    id: String,
     email: String
 }
 
 async fn user_registration_signup_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     params: web::Json<UserRegistrationSignUpPost>
 ) -> impl Responder {
     info!("user_registration_signup_post");
+
+    let ur = user_registration::UserRegistration::new(&dp);
+
+    let mut register_id = uuid::Uuid::nil(); 
+    match uuid::Uuid::parse_str(&params.id) {
+        Ok(value) => {
+            register_id = value;
+        }
+        Err(e) => {
+            error!("Invalid UUID format for id: {}", e);
+            return HttpResponse::BadRequest()
+                .json(ApiResponse::error("invalid_uuid_format"))
+                ;
+        }
+    };
+
+    match ur.register_user(&register_id, &params.email).await {
+        Ok(_) => {
+            info!("User registered successfully");
+        },
+        Err(e) => {
+            error!("Error registering user: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("registration failed"))
+                ;
+        }   
+    }
 
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"))

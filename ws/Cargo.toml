@@ -13,6 +13,7 @@ serde = { version="*", features=["derive"]}
 serde_json = "*"
 envy = "*"
 
+uuid = "*"
 openssl = "*"
 
 actix-web = { version="4", features=["openssl"] }
@@ -24,3 +25,4 @@ futures = "*"
 # projects
 config = { path = "../libs/config" }
 database_provider = { path = "../libs/database_provider" }
+user_registration = { path = "../libs/user_registration" }

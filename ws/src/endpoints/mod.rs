@@ -47,6 +47,14 @@ impl ApiResponse {
             data: None
         };
     }
+
+    pub fn error(message: &'static str) -> Self {
+        return Self {
+            success: false,
+            message,
+            data: None
+        };
+    }
 }
 
 

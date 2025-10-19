@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-log = "*"
-sqlx = "*"
+tracing = "*"
+sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+uuid = { version = "*", features = ["v4"] }
+
+# projects
+database_provider = { path = "../database_provider" }
