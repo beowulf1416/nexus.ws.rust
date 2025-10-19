@@ -31,15 +31,23 @@ impl UserRegistration {
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             // let uuid_id = sqlx::types::Uuid::from_bytes(id.as_bytes().clone());
-            let result = sqlx::query("call user_registration.register_user($1, $2);")
+            match sqlx::query("call user_registration.register_user($1, $2);")
                 .bind(id)
                 .bind(email)
-                .fetch_one(&pool)
-                .await;
-            
-            debug!("Result: {:?}", result);
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error registering user: {:?}", e);
+                        return Err("Error registering user");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("No Postgres pool found for 'main'");
         }
-        return Ok(());
     }
 }
 
