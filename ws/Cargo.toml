@@ -22,4 +22,5 @@ futures = "*"
 
 
 # projects
-db_provider = { path = "../libs/db_provider" }
+config = { path = "../libs/config" }
+database_provider = { path = "../libs/database_provider" }
