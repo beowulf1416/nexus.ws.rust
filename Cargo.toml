@@ -3,7 +3,8 @@ resolver = "3"
 members = [
     "libs/config",
     "libs/database_provider",
-    "libs/jwt",
+    "libs/jwt", 
+    "libs/mailer",
     "libs/user_registration",
     "ws"
 ]
