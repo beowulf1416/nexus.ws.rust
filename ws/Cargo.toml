@@ -15,6 +15,7 @@ envy = "*"
 
 uuid = "*"
 openssl = "*"
+rand = "*"
 
 actix-web = { version="4", features=["openssl"] }
 actix-http = "*"
@@ -24,5 +25,6 @@ futures = "*"
 
 # projects
 config = { path = "../libs/config" }
+mailer = { path = "../libs/mailer" }
 database_provider = { path = "../libs/database_provider" }
 user_registration = { path = "../libs/user_registration" }

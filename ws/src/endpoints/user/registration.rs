@@ -10,6 +10,8 @@ use serde::{
 };
 use serde_json::json;
 
+use rand::Rng;
+
 use actix_web::{
     dev::ConnectionInfo, 
     http, 
@@ -24,6 +26,8 @@ use crate::endpoints::{
     default_option_response
 };
 
+
+const TOKEN_LENGTH: usize = 32;
 
 
 
@@ -50,6 +54,7 @@ struct UserRegistrationSignUpPost {
 }
 
 async fn user_registration_signup_post(
+    mailer: web::Data<Arc<mailer::Mailer>>,
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     params: web::Json<UserRegistrationSignUpPost>
 ) -> impl Responder {
@@ -70,9 +75,25 @@ async fn user_registration_signup_post(
         }
     };
 
-    match ur.register_user(&register_id, &params.email).await {
+    // generate token
+    let token: String = rand::thread_rng()
+        .sample_iter(&rand::distributions::Alphanumeric)
+        .take(TOKEN_LENGTH)
+        .map(char::from)
+        .collect()
+        ;
+
+    match ur.register_user(&register_id, &params.email, &token).await {
         Ok(_) => {
             info!("User registered successfully");
+
+            // send email with link to verify email address
+            if let Err(result) = mailer.send(format!("Please verify your email address by clicking the following link: /user/sign-up/verified/{}", token)) {
+                error!("Error sending verification email: {}", result);
+                return HttpResponse::InternalServerError()
+                    .json(ApiResponse::error("email_sending_failed"))
+                    ;
+            }
         },
         Err(e) => {
             error!("Error registering user: {}", e);

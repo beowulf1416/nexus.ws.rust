@@ -54,7 +54,9 @@ async fn main() -> std::io::Result<()> {
             .wrap(actix_web::middleware::from_fn(crate::middleware::cors::cors_middleware))
 
             .app_data(web::Data::new(Arc::new(cfg.clone())))
+            .app_data(web::Data::new(Arc::new(mailer::Mailer::new())))
             .app_data(web::Data::new(Arc::new(db_provider.clone())))
+
 
             .service(web::scope("/session").configure(crate::endpoints::session::config))
             .service(web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config))

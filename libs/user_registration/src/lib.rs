@@ -25,15 +25,17 @@ impl UserRegistration {
     pub async fn register_user(
         &self,
         id: &uuid::Uuid,
-        email: &str
+        email: &str,
+        token: &str
     ) -> Result<(), &'static str> {
         info!("register_user");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             // let uuid_id = sqlx::types::Uuid::from_bytes(id.as_bytes().clone());
-            match sqlx::query("call user_registration.register_user($1, $2);")
+            match sqlx::query("call user_registration.register_user($1, $2, $3);")
                 .bind(id)
                 .bind(email)
+                .bind(token)
                 .execute(&pool)
                 .await {
                     Ok(_) => {
