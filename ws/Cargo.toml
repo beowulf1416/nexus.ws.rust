@@ -13,7 +13,7 @@ serde = { version="*", features=["derive"]}
 serde_json = "*"
 envy = "*"
 
-uuid = "*"
+uuid = { version = "*", features = ["serde"] }
 openssl = "*"
 rand = "*"
 

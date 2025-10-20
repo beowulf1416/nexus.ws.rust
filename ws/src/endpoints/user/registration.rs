@@ -1,5 +1,6 @@
 use tracing::{
     info,
+    debug,
     error
 };
 use std::sync::Arc;
@@ -42,6 +43,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             web::resource("verified")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(user_registration_signup_verified_post))
+        )
+        .service(
+            web::resource("details")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(user_registration_details_post))
         )
     ;
 }
@@ -111,14 +117,45 @@ async fn user_registration_signup_post(
 
 #[derive(Debug, Deserialize)]
 struct UserRegistrationSignUpVerifiedPost {
+    register_id: uuid::Uuid,
     token: String,
     pw: String
 }
 
 async fn user_registration_signup_verified_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     params: web::Json<UserRegistrationSignUpVerifiedPost>
 ) -> impl Responder {
     info!("user_registration_signup_verified_post");
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("success"))
+        ;
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct UserRegistrationDetailsPost {
+    token: String
+}
+
+
+async fn user_registration_details_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<UserRegistrationDetailsPost>
+) -> impl Responder {
+    info!("user_registration_details_post");
+
+    let ur = user_registration::UserRegistration::new(&dp);
+    match ur.get_details(&params.token).await {
+        Ok(_) => {
+            debug!("user_registration_details_post ok");
+        }
+        Err(e) => {
+            error!("unable to retrieve user registration details: {:?}", e);
+        }
+    }
 
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"))
