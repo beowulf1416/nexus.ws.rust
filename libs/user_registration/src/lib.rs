@@ -113,10 +113,39 @@ impl UserRegistration {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::Rng;
 
-    // #[test]
-    // fn it_works() {
-    //     let result = add(2, 2);
-    //     assert_eq!(result, 4);
-    // }
+    const TOKEN_LENGTH: usize = 32;
+
+    #[actix_web::test]
+    async fn test_register_user() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
+
+        let cfg = config::Config::from_env();
+        let db_provider = database_provider::DatabaseProvider::new(&cfg);
+        let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+        let register_id = uuid::Uuid::new_v4();
+        let email = format!("test_{}@test.com", rand::random::<u16>());
+        let token: String = rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(TOKEN_LENGTH)
+            .map(char::from)
+            .collect()
+            ;
+
+        let ur = UserRegistration::new(&dp);
+
+        match ur.register_user(&register_id, &email, &token).await {
+            Ok(_) => {
+                assert!(true);
+            },
+            Err(e) => {
+                assert!(false, "error registering user: {}", e);
+            }   
+        }
+
+    }
 }

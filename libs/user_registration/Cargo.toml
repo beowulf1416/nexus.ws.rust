@@ -11,3 +11,11 @@ uuid = { version = "*", features = ["v4"] }
 
 # projects
 database_provider = { path = "../database_provider" }
+
+
+[dev-dependencies]
+tracing-subscriber = "*"
+rand = "*"
+actix-web = "*"
+
+config = { path = "../config" }
