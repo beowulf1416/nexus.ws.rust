@@ -28,3 +28,6 @@ config = { path = "../libs/config" }
 mailer = { path = "../libs/mailer" }
 database_provider = { path = "../libs/database_provider" }
 user_registration = { path = "../libs/user_registration" }
+user_registration_postgres = { path = "../libs/user_registration_postgres" }
+
+

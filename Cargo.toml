@@ -5,6 +5,7 @@ members = [
     "libs/database_provider",
     "libs/jwt", 
     "libs/mailer",
-    "libs/user_registration",
+    "libs/user_registration", 
+    "libs/user_registration_postgres",
     "ws"
 ]

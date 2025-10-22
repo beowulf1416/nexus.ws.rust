@@ -27,6 +27,8 @@ use crate::endpoints::{
     default_option_response
 };
 
+use user_registration::UserRegistrationProvider;
+
 
 const TOKEN_LENGTH: usize = 32;
 
@@ -66,7 +68,8 @@ async fn user_registration_signup_post(
 ) -> impl Responder {
     info!("user_registration_signup_post");
 
-    let ur = user_registration::UserRegistration::new(&dp);
+    // let ur = user_registration::UserRegistration::new(&dp);
+    let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
     let mut register_id = uuid::Uuid::nil(); 
     match uuid::Uuid::parse_str(&params.id) {
