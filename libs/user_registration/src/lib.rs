@@ -17,6 +17,52 @@ pub trait UserRegistrationProvider {
         email: &str,
         token: &str
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn fetch_registration_details_by_token(
+        &self,
+        token: &str
+    ) -> impl Future<Output = Result<UserRegistrationDetails, &'static str>> + Send;
+
+    fn fetch_registration_details_by_id(
+        &self,
+        register_id: &uuid::Uuid
+    ) -> impl Future<Output = Result<UserRegistrationDetails, &'static str>> + Send;
+}
+
+
+#[derive(Debug, Clone)]
+pub struct UserRegistrationDetails {
+    register_id: uuid::Uuid,
+    email: String,
+    token: String
+}
+
+
+impl UserRegistrationDetails {
+
+    pub fn new(
+        register_id: &uuid::Uuid,
+        email: &str,
+        token: &str
+    ) -> Self {
+        return Self {
+            register_id: register_id.clone(),
+            email: String::from(email),
+            token: String::from(token)
+        };
+    }
+
+    pub fn register_id(&self) -> uuid::Uuid {
+        return self.register_id.clone();
+    }
+
+    pub fn email(&self) -> String {
+        return self.email.clone();
+    }
+
+    pub fn token(&self) -> String {
+        return self.token.clone();
+    }
 }
 
 
@@ -27,13 +73,13 @@ pub struct UserRegistration {
 
 impl UserRegistration {
 
-    pub fn new(
-        dp: &database_provider::DatabaseProvider
-    ) -> Self {
-        return Self {
-            dp: dp.clone()
-        };
-    }
+    // pub fn new(
+    //     dp: &database_provider::DatabaseProvider
+    // ) -> Self {
+    //     return Self {
+    //         dp: dp.clone()
+    //     };
+    // }
 
     // pub async fn register_user(
     //     &self,
@@ -65,32 +111,32 @@ impl UserRegistration {
     // }
 
 
-    pub async fn get_details(
-        &self,
-        token: &str
-    ) -> Result<(), &'static str> {
-        info!("get_details");
-        debug!("token: {:?}", token);
+    // pub async fn get_details(
+    //     &self,
+    //     token: &str
+    // ) -> Result<(), &'static str> {
+    //     info!("get_details");
+    //     debug!("token: {:?}", token);
 
-        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from user_registration.get_details($1);")
-                .bind(token)
-                .fetch_one(&pool)
-                .await {
-                    Ok(row) => {
-                        debug!("row: {:?}", row);
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error verifying user registration: {:?}", e);
-                        return Err("Error verifying user registration");
-                    }
-                }
-        } else {
-            error!("No Postgres pool found for 'main'");
-            return Err("Unable to get pool for 'main'");
-        }
-    }
+    //     if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+    //         match sqlx::query("select * from user_registration.get_details($1);")
+    //             .bind(token)
+    //             .fetch_one(&pool)
+    //             .await {
+    //                 Ok(row) => {
+    //                     debug!("row: {:?}", row);
+    //                     return Ok(());
+    //                 }
+    //                 Err(e) => {
+    //                     error!("Error verifying user registration: {:?}", e);
+    //                     return Err("Error verifying user registration");
+    //                 }
+    //             }
+    //     } else {
+    //         error!("No Postgres pool found for 'main'");
+    //         return Err("Unable to get pool for 'main'");
+    //     }
+    // }
 
 
     pub async fn verify_registration(
@@ -120,70 +166,3 @@ impl UserRegistration {
         }
     }
 }
-
-
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use rand::Rng;
-
-//     const TOKEN_LENGTH: usize = 32;
-
-//     #[actix_web::test]
-//     async fn test_register_user() {
-//         if let Err(e) = tracing_subscriber::fmt::try_init() {
-//             println!("error: {:?}", e);
-//         }
-
-//         let cfg = config::Config::from_env();
-//         let db_provider = database_provider::DatabaseProvider::new(&cfg);
-//         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
-
-//         let register_id = uuid::Uuid::new_v4();
-//         let email = format!("test_{}@test.com", rand::random::<u16>());
-//         let token: String = rand::thread_rng()
-//             .sample_iter(&rand::distributions::Alphanumeric)
-//             .take(TOKEN_LENGTH)
-//             .map(char::from)
-//             .collect()
-//             ;
-
-//         let ur = UserRegistration::new(&dp);
-
-//         if let Err(e) = ur.register_user(&register_id, &email, &token).await {
-//             assert!(false, "error registering user: {}", e);
-//         }
-//     }
-
-
-//     #[actix_web::test]
-//     async fn test_get_registration_details() {
-//         if let Err(e) = tracing_subscriber::fmt::try_init() {
-//             println!("error: {:?}", e);
-//         }
-
-//         let cfg = config::Config::from_env();
-//         let db_provider = database_provider::DatabaseProvider::new(&cfg);
-//         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
-
-//         let register_id = uuid::Uuid::new_v4();
-//         let email = format!("test_{}@test.com", rand::random::<u16>());
-//         let token: String = rand::thread_rng()
-//             .sample_iter(&rand::distributions::Alphanumeric)
-//             .take(TOKEN_LENGTH)
-//             .map(char::from)
-//             .collect()
-//             ;
-
-//         let ur = UserRegistration::new(&dp);
-
-//         if let Err(e) = ur.register_user(&register_id, &email, &token).await {
-//             assert!(false, "error registering user: {}", e);
-//         }
-
-//         if let Err(e) = ur.get_details(&token).await {
-//             assert!(false, "error retrieving registration details: {}", e);
-//         }
-//     }
-// }

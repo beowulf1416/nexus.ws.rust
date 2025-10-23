@@ -1,7 +1,10 @@
 use tracing::{
     info,
+    debug,
     error
 };
+
+use sqlx::Row;
 
 
 pub struct PostgresUserRegistrationProvider {
@@ -29,27 +32,97 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
     ) -> Result<(), &'static str> {
         info!("register_user");
 
-        // |register_id, email, token| async move {
-            if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-                match sqlx::query("call user_registration.register_user($1, $2, $3);")
-                    .bind(register_id)
-                    .bind(email)
-                    .bind(token)
-                    .execute(&pool)
-                    .await {
-                        Ok(_) => {
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            error!("Error registering user: {:?}", e);
-                            return Err("Error registering user");
-                        }
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call user_registration.register_user($1, $2, $3);")
+                .bind(register_id)
+                .bind(email)
+                .bind(token)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
                     }
-            } else {
-                error!("No Postgres pool found for 'main'");
-                return Err("Unable to get pool for 'main'");
-            }
-        // }
+                    Err(e) => {
+                        error!("Error registering user: {:?}", e);
+                        return Err("Error registering user");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn fetch_registration_details_by_token(
+        &self,
+        token: &str
+    ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
+        info!("get_details");
+        debug!("token: {:?}", token);
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from user_registration.fetch_registration_details_by_token($1);")
+                .bind(token)
+                .fetch_one(&pool)
+                .await {
+                    Ok(row) => {
+                        debug!("row: {:?}", row);
+
+                        let register_id: uuid::Uuid = row.get("register_id");
+                        let email: &str = row.get("email");
+                        let token: &str = row.get("token");
+
+                        return Ok(user_registration::UserRegistrationDetails::new(
+                            &register_id,
+                            email,
+                            token
+                        ));
+                    }
+                    Err(e) => {
+                        error!("Error verifying user registration: {:?}", e);
+                        return Err("Error verifying user registration");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }    
+    }
+
+    async fn fetch_registration_details_by_id(
+        &self,
+        register_id: &uuid::Uuid
+    ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
+        info!("get_details");
+        debug!("token: {:?}", register_id);
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from user_registration.fetch_registration_details_by_id($1);")
+                .bind(register_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(row) => {
+                        debug!("row: {:?}", row);
+
+                        let register_id: uuid::Uuid = row.get("register_id");
+                        let email: &str = row.get("email");
+                        let token: &str = row.get("token");
+
+                        return Ok(user_registration::UserRegistrationDetails::new(
+                            &register_id,
+                            email,
+                            token
+                        ));
+                    }
+                    Err(e) => {
+                        error!("Error verifying user registration: {:?}", e);
+                        return Err("Error verifying user registration");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }    
     }
 }
 
@@ -86,6 +159,41 @@ mod tests {
 
         if let Err(e) = ur.register_user(&register_id, &email, &token).await {
             assert!(false, "error registering user: {}", e);
+        }
+    }
+
+
+    #[actix_web::test]
+    async fn test_fetch_registration_details() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
+
+        let cfg = config::Config::from_env();
+        let db_provider = database_provider::DatabaseProvider::new(&cfg);
+        let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+        let register_id = uuid::Uuid::new_v4();
+        let email = format!("test_{}@test.com", rand::random::<u16>());
+        let token: String = rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(TOKEN_LENGTH)
+            .map(char::from)
+            .collect()
+            ;
+
+        let ur = PostgresUserRegistrationProvider::new(&dp);
+
+        if let Err(e) = ur.register_user(&register_id, &email, &token).await {
+            assert!(false, "error registering user: {}", e);
+        }
+
+        if let Err(e) = ur.fetch_registration_details_by_id(&register_id).await {
+            assert!(false, "error fetching registration details by id")
+        }
+
+        if let Err(e) = ur.fetch_registration_details_by_token(&token).await {
+            assert!(false, "error fetching registration details by token")
         }
     }
 }

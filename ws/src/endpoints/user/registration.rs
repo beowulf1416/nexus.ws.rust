@@ -150,8 +150,10 @@ async fn user_registration_details_post(
 ) -> impl Responder {
     info!("user_registration_details_post");
 
-    let ur = user_registration::UserRegistration::new(&dp);
-    match ur.get_details(&params.token).await {
+    // let ur = user_registration::UserRegistration::new(&dp);
+    let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
+
+    match ur.fetch_registration_details_by_token(&params.token).await {
         Ok(_) => {
             debug!("user_registration_details_post ok");
         }
