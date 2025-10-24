@@ -57,8 +57,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
         &self,
         token: &str
     ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
-        info!("get_details");
-        debug!("token: {:?}", token);
+        info!("fetch_registration_details_by_token");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from user_registration.fetch_registration_details_by_token($1);")
@@ -68,7 +67,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
                     Ok(row) => {
                         debug!("row: {:?}", row);
 
-                        let register_id: uuid::Uuid = row.get("register_id");
+                        let register_id: uuid::Uuid = row.get("id");
                         let email: &str = row.get("email");
                         let token: &str = row.get("token");
 
@@ -93,8 +92,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
         &self,
         register_id: &uuid::Uuid
     ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
-        info!("get_details");
-        debug!("token: {:?}", register_id);
+        info!("fetch_registration_details_by_id");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from user_registration.fetch_registration_details_by_id($1);")
@@ -104,7 +102,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
                     Ok(row) => {
                         debug!("row: {:?}", row);
 
-                        let register_id: uuid::Uuid = row.get("register_id");
+                        let register_id: uuid::Uuid = row.get("id");
                         let email: &str = row.get("email");
                         let token: &str = row.get("token");
 
@@ -123,6 +121,34 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }    
+    }
+
+
+    async fn verify_registration(
+        &self,
+        register_id: &uuid::Uuid,
+        token: &str
+    ) -> Result<(), &'static str> {
+        info!("verify_registration");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call user_registration.verify_registration($1, $2);")
+                .bind(register_id)
+                .bind(token)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error verifying user registration: {:?}", e);
+                        return Err("Error verifying user registration");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
     }
 }
 
@@ -164,7 +190,7 @@ mod tests {
 
 
     #[actix_web::test]
-    async fn test_fetch_registration_details() {
+    async fn test_registration() {
         if let Err(e) = tracing_subscriber::fmt::try_init() {
             println!("error: {:?}", e);
         }
@@ -194,6 +220,10 @@ mod tests {
 
         if let Err(e) = ur.fetch_registration_details_by_token(&token).await {
             assert!(false, "error fetching registration details by token")
+        }
+
+        if let Err(e) = ur.verify_registration(&register_id, &token).await {
+            assert!(false, "error verifying registrations");
         }
     }
 }
