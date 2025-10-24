@@ -8,6 +8,8 @@ tracing = "*"
 sqlx = { version = "*", features = ["postgres", "uuid"] }
 
 uuid = { version = "*", features = ["v4"] }
+serde = "*"
+serde_json = "*"
 
 # projects
 database_provider = { path = "../database_provider" }

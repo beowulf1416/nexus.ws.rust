@@ -68,7 +68,6 @@ async fn user_registration_signup_post(
 ) -> impl Responder {
     info!("user_registration_signup_post");
 
-    // let ur = user_registration::UserRegistration::new(&dp);
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
     let mut register_id = uuid::Uuid::nil(); 
@@ -131,9 +130,21 @@ async fn user_registration_signup_verified_post(
 ) -> impl Responder {
     info!("user_registration_signup_verified_post");
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+    let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
+    match ur.verify_registration(
+        &params.register_id,
+        &params.token
+    ).await {
+        Err(e) => {
+            error!("error while verifying registration: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("error while verifying registration"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("success"));
+        }
+    }
 }
 
 
@@ -154,8 +165,16 @@ async fn user_registration_details_post(
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
     match ur.fetch_registration_details_by_token(&params.token).await {
-        Ok(_) => {
+        Ok(urd) => {
             debug!("user_registration_details_post ok");
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "success",
+                    Some(json!({
+                        "details": urd
+                    }))
+                ));
         }
         Err(e) => {
             error!("unable to retrieve user registration details: {:?}", e);

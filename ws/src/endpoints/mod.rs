@@ -31,7 +31,7 @@ impl ApiResponse {
     pub fn new(
         success: bool,
         message: &'static str,
-        data: &Option<Value>
+        data: Option<Value>
     ) -> Self {
         return Self {
             success,

@@ -7,6 +7,7 @@ use tracing::{
 
 use uuid::Uuid;
 use core::future::Future;
+use serde::Serialize;
 
 
 pub trait UserRegistrationProvider {
@@ -36,7 +37,7 @@ pub trait UserRegistrationProvider {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UserRegistrationDetails {
     register_id: uuid::Uuid,
     email: String,
@@ -71,39 +72,3 @@ impl UserRegistrationDetails {
     }
 }
 
-
-pub struct UserRegistration {
-    dp: database_provider::DatabaseProvider
-}
-
-
-impl UserRegistration {
-
-
-    pub async fn verify_registration(
-        &self,
-        register_id: &uuid::Uuid,
-        token: &str
-    ) -> Result<(), &'static str> {
-        info!("verify_registration");
-
-        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call user_registration.verify_registration($1, $2);")
-                .bind(register_id)
-                .bind(token)
-                .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error verifying user registration: {:?}", e);
-                        return Err("Error verifying user registration");
-                    }
-                }
-        } else {
-            error!("No Postgres pool found for 'main'");
-            return Err("Unable to get pool for 'main'");
-        }
-    }
-}
