@@ -1,4 +1,3 @@
-use sqlx::query_as;
 use tracing::{
     info,
     debug,
