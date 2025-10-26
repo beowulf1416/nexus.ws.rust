@@ -59,9 +59,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 }
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct UserRegistrationSignUpPost {
-    id: String,
+    id: uuid::Uuid,
     email: String
 }
 
@@ -74,18 +74,18 @@ async fn user_registration_signup_post(
 
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
-    let mut register_id = uuid::Uuid::nil(); 
-    match uuid::Uuid::parse_str(&params.id) {
-        Ok(value) => {
-            register_id = value;
-        }
-        Err(e) => {
-            error!("Invalid UUID format for id: {}", e);
-            return HttpResponse::BadRequest()
-                .json(ApiResponse::error("invalid_uuid_format"))
-                ;
-        }
-    };
+    // let mut register_id = uuid::Uuid::nil(); 
+    // match uuid::Uuid::parse_str(&params.id) {
+    //     Ok(value) => {
+    //         register_id = value;
+    //     }
+    //     Err(e) => {
+    //         error!("Invalid UUID format for id: {}", e);
+    //         return HttpResponse::BadRequest()
+    //             .json(ApiResponse::error("invalid_uuid_format"))
+    //             ;
+    //     }
+    // };
 
     // generate token
     let mut rng = rand::rng();
@@ -94,7 +94,11 @@ async fn user_registration_signup_post(
         .collect()
         ;
 
-    match ur.register_user(&register_id, &params.email, &token).await {
+    match ur.register_user(
+        &params.id,
+        &params.email,
+        &token
+    ).await {
         Ok(_) => {
             info!("User registered successfully");
 
@@ -173,6 +177,7 @@ async fn user_registration_signup_verified_post(
         "",
         ""
     ).await {
+        error!("unable to save user details: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
@@ -232,3 +237,41 @@ async fn user_registration_details_post(
         .json(ApiResponse::ok("success"))
         ;
 }
+
+
+
+
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     use rand::*;
+//     use actix_web::{
+//         web
+//     };
+//     use serde::Serialize;
+//     use serde_json::json;
+
+
+//     #[actix_web::test]
+//     async fn test_registration_endpoint() {
+
+//         let ursp = UserRegistrationSignUpPost {
+//             id: uuid::Uuid::new_v4(),
+//             email: format!("test_{}@test.com", rand::random::<u16>())
+//         };
+//         let params = actix_web::web::Data::Json::new(ursp);
+
+//         let cfg = config::Config::from_env();
+//         let mailer = mailer::Mailer::new();
+//         let dp = database_provider::DatabaseProvider::new(&cfg);
+
+
+//         let r = user_registration_signup_post(
+//             web::Data::new(std::sync::Arc::new(mailer)),
+//             web::Data::new(std::sync::Arc::new(dp)),
+//             params
+//         ).await;
+//     }
+// }
