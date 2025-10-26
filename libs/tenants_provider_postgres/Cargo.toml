@@ -1,0 +1,24 @@
+[package]
+name = "tenants_provider_postgres"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracing = "*"
+sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+uuid = { version = "*", features = ["v4"] }
+chrono = "*"
+
+# projects
+database_provider = { path = "../database_provider" }
+tenants_provider = { path = "../tenants_provider" }
+
+
+
+[dev-dependencies]
+tracing-subscriber = "*"
+rand = "*"
+actix-web = "*"
+
+config = { path = "../config" }
