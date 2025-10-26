@@ -31,6 +31,7 @@ use crate::endpoints::{
 
 use user_registration::UserRegistrationProvider;
 use users_provider::UsersProvider;
+use auth_provider::AuthProvider;
 
 
 const TOKEN_LENGTH: usize = 32;
@@ -141,6 +142,27 @@ async fn user_registration_signup_verified_post(
                 .json(ApiResponse::error("error while verifying registration"));
     }
 
+    if let Err(e) = ur.fetch_registration_details_by_id(
+        &params.register_id
+    ).await {
+        error!("unable to fetch user registration details: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("error while verifying registration"));
+    }
+    let urd = match ur.fetch_registration_details_by_id(&params.register_id).await {
+        Ok(r) => {
+            r
+        }
+        Err(e) => {
+            error!("unable to fetch user registration details: {}", e);
+            user_registration::UserRegistrationDetails::new(
+                &params.register_id,
+                "",
+                ""
+            )
+        }
+    };
+
     let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
     if let Err(e) = up.save(
@@ -154,6 +176,19 @@ async fn user_registration_signup_verified_post(
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
+
+    let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+
+    if let Err(e) = ap.add_user_auth_password(
+        &params.register_id,
+        urd.email().as_str(),
+        &params.pw
+    ).await {
+        error!("unable to add user authentication via password: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("error while verifying registration"));
+    }
+
 
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"));

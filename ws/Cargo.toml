@@ -34,6 +34,9 @@ users_provider_postgres = { path = "../libs/users_provider_postgres" }
 user_registration = { path = "../libs/user_registration" }
 user_registration_postgres = { path = "../libs/user_registration_postgres" }
 
+auth_provider = { path = "../libs/auth_provider" }
+auth_provider_postgres = { path = "../libs/auth_provider_postgres" }
+
 admin_tenants = { path = "../libs/admin_tenants" }
 admin_tenants_postgres = { path = "../libs/admin_tenants_postgres" }
 
