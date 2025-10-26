@@ -156,7 +156,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::Rng;
+    use rand::{distr::Alphanumeric, Rng};
 
     use user_registration::UserRegistrationProvider;
 
@@ -174,10 +174,9 @@ mod tests {
 
         let register_id = uuid::Uuid::new_v4();
         let email = format!("test_{}@test.com", rand::random::<u16>());
-        let token: String = rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(TOKEN_LENGTH)
-            .map(char::from)
+        let mut rng = rand::rng();
+        let token: String = (0..50)
+            .map(|_| rng.sample(Alphanumeric) as char)
             .collect()
             ;
 
@@ -201,10 +200,9 @@ mod tests {
 
         let register_id = uuid::Uuid::new_v4();
         let email = format!("test_{}@test.com", rand::random::<u16>());
-        let token: String = rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(TOKEN_LENGTH)
-            .map(char::from)
+        let mut rng = rand::rng();
+        let token: String = (0..50)
+            .map(|_| rng.sample(Alphanumeric) as char)
             .collect()
             ;
 

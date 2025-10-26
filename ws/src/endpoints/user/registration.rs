@@ -11,7 +11,10 @@ use serde::{
 };
 use serde_json::json;
 
-use rand::Rng;
+use rand::{
+    distr::Alphanumeric,
+    Rng
+};
 
 use actix_web::{
     dev::ConnectionInfo, 
@@ -21,13 +24,13 @@ use actix_web::{
     Responder
 };
 
-
 use crate::endpoints::{
     ApiResponse,
     default_option_response
 };
 
 use user_registration::UserRegistrationProvider;
+use users_provider::UsersProvider;
 
 
 const TOKEN_LENGTH: usize = 32;
@@ -84,10 +87,9 @@ async fn user_registration_signup_post(
     };
 
     // generate token
-    let token: String = rand::thread_rng()
-        .sample_iter(&rand::distributions::Alphanumeric)
-        .take(TOKEN_LENGTH)
-        .map(char::from)
+    let mut rng = rand::rng();
+    let token: String = (0..50)
+        .map(|_| rng.sample(Alphanumeric) as char)
         .collect()
         ;
 
@@ -131,20 +133,30 @@ async fn user_registration_signup_verified_post(
     info!("user_registration_signup_verified_post");
 
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
-    match ur.verify_registration(
-        &params.register_id,
-        &params.token
-    ).await {
-        Err(e) => {
-            error!("error while verifying registration: {}", e);
+
+    if let Err(e) = ur.verify_registration(
+        &params.register_id, 
+        &params.token).await {
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("error while verifying registration"));
-        }
-        Ok(_) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::ok("success"));
-        }
     }
+
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+    if let Err(e) = up.save(
+        &params.register_id,
+        "",
+        "",
+        "",
+        "",
+        ""
+    ).await {
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("error while verifying registration"));
+    }
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("success"));
 }
 
 

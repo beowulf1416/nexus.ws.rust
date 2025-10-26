@@ -1,5 +1,6 @@
 use tracing::{
     info,
+    debug,
     error
 };
 
@@ -56,6 +57,41 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn fetch(
+        &self,
+        user_id: &uuid::Uuid
+    ) -> Result<users_provider::User, &'static str> {
+            info!("save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from users.users_fetch_by_id($1);")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(row) => {
+                        debug!("//todo {:?}", row);
+                        return Ok(users_provider::User { 
+                            user_id: uuid::Uuid::new_v4(),
+                            active: false,
+                            created: chrono::Utc::now(),
+                            first_name: String::from("test"),
+                            middle_name: String::from("test"),
+                            last_name: String::from("test"),
+                            prefix: String::from("test"),
+                            suffix: String::from("test") 
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error registering user: {:?}", e);
+                        return Err("Error registering user");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -66,7 +102,7 @@ mod tests {
     use super::*;
 
     #[actix_web::test]
-    async fn test_user_save() {
+    async fn test_user() {
         if let Err(e) = tracing_subscriber::fmt::try_init() {
             println!("error: {:?}", e);
         }
@@ -86,6 +122,11 @@ mod tests {
         if let Err(e) = up.save(&user_id, &first_name, &middle_name, &last_name, &prefix, &suffix).await {
             error!(e);
             assert!(false, "unable to save user");
+        }
+
+        if let Err(e) = up.fetch(&user_id).await {
+            error!(e);
+            assert!(false, "unable to fetch user");
         }
     }
 }
