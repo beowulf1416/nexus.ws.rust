@@ -242,36 +242,36 @@ async fn user_registration_details_post(
 
 
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     use rand::*;
-//     use actix_web::{
-//         web
-//     };
-//     use serde::Serialize;
-//     use serde_json::json;
+    use rand::*;
+    use actix_web::{
+        web
+    };
 
 
-//     #[actix_web::test]
-//     async fn test_registration_endpoint() {
+    #[actix_web::test]
+    async fn test_registration_endpoint() {
 
-//         let ursp = UserRegistrationSignUpPost {
-//             id: uuid::Uuid::new_v4(),
-//             email: format!("test_{}@test.com", rand::random::<u16>())
-//         };
-//         let params = actix_web::web::Data::Json::new(ursp);
+        let ursp = UserRegistrationSignUpPost {
+            id: uuid::Uuid::new_v4(),
+            email: format!("test_{}@test.com", rand::random::<u16>())
+        };
+        let params = web::Json(ursp);
 
-//         let cfg = config::Config::from_env();
-//         let mailer = mailer::Mailer::new();
-//         let dp = database_provider::DatabaseProvider::new(&cfg);
+        let cfg = config::Config::from_env();
+        let mailer = mailer::Mailer::new();
+        let dp = database_provider::DatabaseProvider::new(&cfg);
 
 
-//         let r = user_registration_signup_post(
-//             web::Data::new(std::sync::Arc::new(mailer)),
-//             web::Data::new(std::sync::Arc::new(dp)),
-//             params
-//         ).await;
-//     }
-// }
+        let _r = user_registration_signup_post(
+            web::Data::new(std::sync::Arc::new(mailer)),
+            web::Data::new(std::sync::Arc::new(dp)),
+            params
+        ).await;
+        // debug!("result: {:?}", r);
+        assert!(false, "result");
+    }
+}
