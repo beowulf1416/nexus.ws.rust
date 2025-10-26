@@ -218,7 +218,6 @@ async fn user_registration_details_post(
 
     match ur.fetch_registration_details_by_token(&params.token).await {
         Ok(urd) => {
-            debug!("user_registration_details_post ok");
             return HttpResponse::Ok()
                 .json(ApiResponse::new(
                     true,
