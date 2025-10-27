@@ -17,7 +17,6 @@ use rand::{
 };
 
 use actix_web::{
-    dev::ConnectionInfo, 
     http, 
     web, 
     HttpResponse, 
@@ -74,22 +73,9 @@ async fn user_registration_signup_post(
 
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
-    // let mut register_id = uuid::Uuid::nil(); 
-    // match uuid::Uuid::parse_str(&params.id) {
-    //     Ok(value) => {
-    //         register_id = value;
-    //     }
-    //     Err(e) => {
-    //         error!("Invalid UUID format for id: {}", e);
-    //         return HttpResponse::BadRequest()
-    //             .json(ApiResponse::error("invalid_uuid_format"))
-    //             ;
-    //     }
-    // };
-
     // generate token
     let mut rng = rand::rng();
-    let token: String = (0..50)
+    let token: String = (0..TOKEN_LENGTH)
         .map(|_| rng.sample(Alphanumeric) as char)
         .collect()
         ;
@@ -139,11 +125,14 @@ async fn user_registration_signup_verified_post(
 
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
+    // mark registration record as verified
     if let Err(e) = ur.verify_registration(
         &params.register_id, 
-        &params.token).await {
-            return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("error while verifying registration"));
+        &params.token
+    ).await {
+        error!("unable to verify user registration: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("error while verifying registration"));
     }
 
     if let Err(e) = ur.fetch_registration_details_by_id(
@@ -169,6 +158,7 @@ async fn user_registration_signup_verified_post(
 
     let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
+    // save initial user details
     if let Err(e) = up.save(
         &params.register_id,
         "",
@@ -184,6 +174,7 @@ async fn user_registration_signup_verified_post(
 
     let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
 
+    // add user authentication using email and password
     if let Err(e) = ap.add_user_auth_password(
         &params.register_id,
         urd.email().as_str(),

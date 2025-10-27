@@ -1,7 +1,9 @@
 use tracing::{
-    info
+    info,
+    error
 };
 
+use std::sync::Arc;
 use serde::{
     Serialize,
     Deserialize
@@ -21,6 +23,10 @@ use crate::endpoints::{
     ApiResponse,
     default_option_response
 };
+
+use auth_provider::AuthProvider;
+
+
 
 
 
@@ -44,11 +50,29 @@ struct UserSessionSignInPost {
 
 async fn user_session_signin_post(
     info: ConnectionInfo,
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     params: web::Json<UserSessionSignInPost>
 ) -> impl Responder {
     info!("user_session_signin_post");
 
+    let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+    let authentic = match ap.authenticate_by_password(
+        &params.email,
+        &params.pw
+    ).await {
+        Err(e) => {
+            error!("unable to authenticate user: {}", e);
+            false
+        }
+        Ok(r) => {
+            r
+        }
+    };
+
     return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+        .json(ApiResponse::new(
+            authentic,
+            if authentic { "user is authentic" } else { "user/password is not correct" },
+            None
+        ));
 }

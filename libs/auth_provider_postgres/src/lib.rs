@@ -57,16 +57,16 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
         }
     }
 
-    async fn authenticate(
+    async fn authenticate_by_password(
         &self,
-        user_id: &uuid::Uuid,
+        email: &str,
         pw: &str
     ) -> Result<bool, &'static str> {
         info!("authenticate");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from auth.user_auth_password_authenticate($1,$2);")
-                .bind(user_id)
+                .bind(email)
                 .bind(pw)
                 .fetch_one(&pool)
                 .await {
@@ -125,7 +125,7 @@ mod tests {
             assert!(false, "unable to add user authentication using password");
         }
 
-        if let Err(e) = ap.authenticate(&user_id, &pw).await {
+        if let Err(e) = ap.authenticate_by_password(&email, &pw).await {
             error!(e);
             assert!(false, "unable to authenticate using password");
         }

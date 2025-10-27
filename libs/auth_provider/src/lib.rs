@@ -12,9 +12,9 @@ pub trait AuthProvider {
         pw: &str
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
-    fn authenticate(
+    fn authenticate_by_password(
         &self,
-        user_id: &uuid::Uuid,
+        email: &str,
         pw: &str
     ) -> impl Future<Output = Result<bool, &'static str>> + Send;
 }
