@@ -58,6 +58,35 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         }
     }
 
+
+    async fn set_active(
+        &self,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("set_active");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call users.users_set_active($1,$2);")
+                .bind(user_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting user active status: {:?}", e);
+                        return Err("Error setting user active status");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn fetch(
         &self,
         user_id: &uuid::Uuid
@@ -122,6 +151,11 @@ mod tests {
         if let Err(e) = up.save(&user_id, &first_name, &middle_name, &last_name, &prefix, &suffix).await {
             error!(e);
             assert!(false, "unable to save user");
+        }
+
+        if let Err(e) = up.set_active(&user_id, &true).await {
+            error!(e);
+            assert!(false, "unable to set user active state");
         }
 
         if let Err(e) = up.fetch(&user_id).await {

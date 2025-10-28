@@ -24,6 +24,12 @@ pub trait UsersProvider {
         suffix: &str
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
+    fn set_active(
+        &self,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
     fn fetch(
         &self,
         user_id: &uuid::Uuid

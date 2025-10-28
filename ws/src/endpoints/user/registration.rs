@@ -244,6 +244,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_registration_endpoint() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
 
         let ursp = UserRegistrationSignUpPost {
             id: uuid::Uuid::new_v4(),
@@ -262,6 +265,6 @@ mod tests {
             params
         ).await;
         // debug!("result: {:?}", r);
-        assert!(false, "result");
+        // assert!(false, "result");
     }
 }
