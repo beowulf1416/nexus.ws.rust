@@ -10,6 +10,26 @@ pub struct User {
 }
 
 
+impl User {
+
+    pub fn nil() -> Self {
+        return Self {
+            user_id: uuid::Uuid::nil(),
+            active: false,
+            created: chrono::Utc::now(),
+            first_name: String::from(""),
+            middle_name: String::from(""),
+            last_name: String::from(""),
+            prefix: String::from(""),
+            suffix: String::from("")
+        };
+    }
+
+    pub fn is_nil(&self) -> bool {
+        return self.user_id.is_nil();
+    }
+}
+
 
 
 pub trait UsersProvider {
@@ -30,8 +50,13 @@ pub trait UsersProvider {
         active: &bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
-    fn fetch(
+    fn fetch_by_id(
         &self,
         user_id: &uuid::Uuid
+    ) -> impl Future<Output = Result<User, &'static str>> + Send;
+
+    fn fetch_by_email(
+        &self,
+        email: &str
     ) -> impl Future<Output = Result<User, &'static str>> + Send;
 }

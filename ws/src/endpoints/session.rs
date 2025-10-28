@@ -10,6 +10,7 @@ use serde::{
 };
 use serde_json::json;
 
+use http::header::AUTHORIZATION;
 use actix_web::{
     dev::ConnectionInfo, 
     http, 
@@ -25,6 +26,7 @@ use crate::endpoints::{
 };
 
 use auth_provider::AuthProvider;
+use users_provider::UsersProvider;
 
 
 
@@ -50,6 +52,7 @@ struct UserSessionSignInPost {
 
 async fn user_session_signin_post(
     info: ConnectionInfo,
+    config: web::Data<Arc<config::Config>>,
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     params: web::Json<UserSessionSignInPost>
 ) -> impl Responder {
@@ -69,10 +72,45 @@ async fn user_session_signin_post(
         }
     };
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::new(
-            authentic,
-            if authentic { "user is authentic" } else { "user/password is not correct" },
-            None
-        ));
+    let mut rb = HttpResponse::Ok();
+
+    if (authentic) {
+        let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+        let user = match up.fetch_by_email(&params.email).await {
+            Err(e) => {
+                error!("unable to fetch user record from email: {}", e);
+                users_provider::User::nil()
+            }
+            Ok(u) => {
+                u
+            }
+        };
+
+        if !user.is_nil() {
+            // generate jwt token
+            let tg = jwt::TokenGenerator::new(config.token_secret().as_str());
+            match tg.generate(
+                &user.user_id,
+                &tenants_provider::Tenant::nil().id,
+                &params.email
+            ) {
+                Err(e) => {
+                    error!("unable to generate token: {}", e);
+                }
+                Ok(token) => {
+                    rb.append_header((http::header::AUTHORIZATION, format!("Bearer {}", token)));
+                }
+            }
+        }
+    }
+
+
+    let response = rb.json(ApiResponse::new(
+        authentic,
+        if authentic { "user is authentic" } else { "user/password is not correct" },
+        None
+    ));
+
+    return response;
 }

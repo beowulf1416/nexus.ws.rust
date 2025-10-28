@@ -60,6 +60,7 @@ async fn main() -> std::io::Result<()> {
 
             .service(web::scope("/session").configure(crate::endpoints::session::config))
             .service(web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config))
+            .service(web::scope("/users").configure(crate::endpoints::user::users::config))
 
             .service(web::scope("/admin/tenants").configure(crate::endpoints::admin::tenants::config))
             .service(web::scope("/admin/users").configure(crate::endpoints::admin::users::config))

@@ -87,15 +87,52 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
     }
 
 
-    async fn fetch(
+    async fn fetch_by_id(
         &self,
         user_id: &uuid::Uuid
     ) -> Result<users_provider::User, &'static str> {
-            info!("save");
+        info!("save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from users.users_fetch_by_id($1);")
                 .bind(user_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(row) => {
+                        debug!("//todo {:?}", row);
+                        return Ok(users_provider::User { 
+                            user_id: uuid::Uuid::new_v4(),
+                            active: false,
+                            created: chrono::Utc::now(),
+                            first_name: String::from("test"),
+                            middle_name: String::from("test"),
+                            last_name: String::from("test"),
+                            prefix: String::from("test"),
+                            suffix: String::from("test") 
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error registering user: {:?}", e);
+                        return Err("Error registering user");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+
+    async fn fetch_by_email(
+        &self,
+        email: &str
+    ) -> Result<users_provider::User, &'static str> {
+        info!("save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from users.users_fetch_by_email($1);")
+                .bind(email)
                 .fetch_one(&pool)
                 .await {
                     Ok(row) => {
@@ -158,7 +195,7 @@ mod tests {
             assert!(false, "unable to set user active state");
         }
 
-        if let Err(e) = up.fetch(&user_id).await {
+        if let Err(e) = up.fetch_by_id(&user_id).await {
             error!(e);
             assert!(false, "unable to fetch user");
         }

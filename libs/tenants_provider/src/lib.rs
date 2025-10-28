@@ -1,5 +1,21 @@
 pub struct Tenant {
+    pub id: uuid::Uuid,
+    pub name: String
+}
 
+
+impl Tenant {
+
+    pub fn nil() -> Self {
+        return Self {
+            id: uuid::Uuid::nil(),
+            name: String::from("")
+        };
+    }
+
+    pub fn is_nil(&self) -> bool {
+        return self.id.is_nil();
+    }
 }
 
 

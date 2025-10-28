@@ -11,20 +11,23 @@ use serde::Deserialize;
 
 
 
-pub const DEFAULT_HTTP_PORT: u16 = 80;
+const DEFAULT_HTTP_PORT: u16 = 80;
+const DEFAULT_TOKEN_SECRET: &str = "replace_me";
 
 
 #[derive(Debug, Deserialize)]
 struct EnvironmentConfig {
     http_port: Option<u16>,
-    cn: Option<String>
+    cn: Option<String>,
+    token_secret: Option<String>
 }
 
 
 #[derive(Debug, Clone)]
 pub struct Config {
     http_port: u16,
-    connections: HashMap<String, String>
+    connections: HashMap<String, String>,
+    token_secret: String
 }
 
 
@@ -47,6 +50,7 @@ impl Config {
                         let cfg = Config {
                             http_port: config.http_port.unwrap_or(DEFAULT_HTTP_PORT),
                             connections: connection_strings.clone(),
+                            token_secret: config.token_secret.unwrap_or(String::from(DEFAULT_TOKEN_SECRET))
                         };
 
                         debug!("cfg: {:?}", cfg);
@@ -57,6 +61,7 @@ impl Config {
                         Config {
                             http_port: DEFAULT_HTTP_PORT,
                             connections: HashMap::new(),
+                            token_secret: String::from(DEFAULT_TOKEN_SECRET)
                         }
                     }
                 }
@@ -66,6 +71,7 @@ impl Config {
                 Config {
                     http_port: DEFAULT_HTTP_PORT,
                     connections: HashMap::new(),
+                    token_secret: String::from(DEFAULT_TOKEN_SECRET)
                 }
             }
         };
@@ -75,6 +81,10 @@ impl Config {
 
     pub fn connections(&self) -> HashMap<String, String> {
         return self.connections.clone();
+    }
+
+    pub fn token_secret(&self) -> String {
+        return self.token_secret.clone();
     }
 }
 
