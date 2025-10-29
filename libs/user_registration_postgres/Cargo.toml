@@ -20,3 +20,7 @@ rand = "*"
 actix-web = "*"
 
 config = { path = "../config" }
+users_provider = { path = "../users_provider" }
+users_provider_postgres = { path = "../users_provider_postgres" }
+auth_provider = { path = "../auth_provider" }
+auth_provider_postgres = { path = "../auth_provider_postgres" }

@@ -158,7 +158,9 @@ mod tests {
     use super::*;
     use rand::{distr::Alphanumeric, Rng};
 
+    use users_provider::UsersProvider;
     use user_registration::UserRegistrationProvider;
+    use auth_provider::AuthProvider;
 
     const TOKEN_LENGTH: usize = 32;
 
@@ -223,5 +225,18 @@ mod tests {
         if let Err(e) = ur.verify_registration(&register_id, &token).await {
             assert!(false, "error verifying registrations");
         }
+
+
+        let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+        if let Err(e) = up.save(&register_id, &"", &"", &"", &"", &"").await {
+            assert!(false, "error adding user details");
+        }
+
+        
+        let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+        if let Err(e) = ap.add_user_auth_password(&register_id, &email, &"test1test").await {
+            assert!(false, "error adding user authentication");
+        }
+
     }
 }

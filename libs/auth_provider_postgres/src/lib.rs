@@ -57,6 +57,35 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
         }
     }
 
+
+    async fn user_auth_password_set_active(
+        &self,
+        user_id: &uuid::Uuid,
+        active: bool
+    ) -> Result<(), &'static str> {
+        info!("user_auth_password_set_active");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call auth.user_auth_password_set_active($1,$2);")
+                .bind(user_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting user authentication using password active: {:?}", e);
+                        return Err("Error setting user authentication using password active");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn authenticate_by_password(
         &self,
         email: &str,
@@ -123,6 +152,11 @@ mod tests {
         if let Err(e) = ap.add_user_auth_password(&user_id, &email, &pw).await {
             error!(e);
             assert!(false, "unable to add user authentication using password");
+        }
+
+        if let Err(e) = ap.user_auth_password_set_active(&user_id, true).await {
+            error!(e);
+            assert!(false, "unable to set user authentication using password active");
         }
 
         if let Err(e) = ap.authenticate_by_password(&email, &pw).await {
