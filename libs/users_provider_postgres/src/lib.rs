@@ -87,6 +87,35 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
     }
 
 
+
+    async fn add_email(
+        &self,
+        user_id: &uuid::Uuid,
+        email: &str
+    ) -> Result<(), &'static str> {
+        info!("add_email");    
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call users.user_emails_add($1,$2);")
+                .bind(user_id)
+                .bind(email)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error adding user email: {:?}", e);
+                        return Err("Error adding user email");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn fetch_by_id(
         &self,
         user_id: &uuid::Uuid
@@ -112,8 +141,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                         });
                     }
                     Err(e) => {
-                        error!("Error registering user: {:?}", e);
-                        return Err("Error registering user");
+                        error!("Error fetching user details using id: {:?}", e);
+                        return Err("Error fetching user details using id");
                     }
                 }
         } else {
@@ -149,8 +178,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                         });
                     }
                     Err(e) => {
-                        error!("Error registering user: {:?}", e);
-                        return Err("Error registering user");
+                        error!("Error fetching user details using email: {:?}", e);
+                        return Err("Error fetching user details using email");
                     }
                 }
         } else {
@@ -178,6 +207,8 @@ mod tests {
         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
         let user_id = uuid::Uuid::new_v4();
+        let email = format!("test_{}@test.com", rand::random::<u16>());
+
         let first_name = "test_first";
         let middle_name = "test_middle";
         let last_name = "test_last";
@@ -195,9 +226,19 @@ mod tests {
             assert!(false, "unable to set user active state");
         }
 
+        if let Err(e) = up.add_email(&user_id, &email).await {
+            error!(e);
+            assert!(false, "unable to add user email");
+        }
+
         if let Err(e) = up.fetch_by_id(&user_id).await {
             error!(e);
-            assert!(false, "unable to fetch user");
+            assert!(false, "unable to fetch user by id");
+        }
+
+        if let Err(e) = up.fetch_by_email(&email).await {
+            error!(e);
+            assert!(false, "unable to fetch user by email");
         }
     }
 }

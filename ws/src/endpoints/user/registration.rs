@@ -172,6 +172,18 @@ async fn user_registration_signup_verified_post(
             .json(ApiResponse::error("error while verifying registration"));
     }
 
+    // save user email address
+    if let Err(e) = up.add_email(
+        &params.register_id,
+        urd.email().as_str()
+    ).await {
+        error!("unable to save user email: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("error while verifying registration"));
+
+    }
+
+
     let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
 
     // add user authentication using email and password
@@ -259,7 +271,7 @@ mod tests {
         let dp = database_provider::DatabaseProvider::new(&cfg);
 
 
-        let _r = user_registration_signup_post(
+        let _r  = user_registration_signup_post(
             web::Data::new(std::sync::Arc::new(mailer)),
             web::Data::new(std::sync::Arc::new(dp)),
             params

@@ -50,6 +50,12 @@ pub trait UsersProvider {
         active: &bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
+    fn add_email(
+        &self,
+        user_id: &uuid::Uuid,
+        email: &str
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
     fn fetch_by_id(
         &self,
         user_id: &uuid::Uuid
