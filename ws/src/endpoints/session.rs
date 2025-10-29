@@ -89,7 +89,7 @@ async fn user_session_signin_post(
 
         if !user.is_nil() {
             // generate jwt token
-            let tg = jwt::TokenGenerator::new(config.token_secret().as_str());
+            let tg = token::TokenGenerator::new(config.token_secret().as_str());
             match tg.generate(
                 &user.user_id,
                 &tenants_provider::Tenant::nil().id,

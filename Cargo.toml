@@ -2,9 +2,9 @@
 resolver = "3"
 members = [
     "libs/config",
-    "libs/database_provider",
-    "libs/jwt", 
     "libs/mailer",
+    "libs/token",
+    "libs/database_provider",
     "libs/auth_provider",
     "libs/auth_provider_postgres",
     "libs/tenants_provider",

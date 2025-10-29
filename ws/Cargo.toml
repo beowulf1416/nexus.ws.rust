@@ -28,7 +28,7 @@ config = { path = "../libs/config" }
 mailer = { path = "../libs/mailer" }
 database_provider = { path = "../libs/database_provider" }
 
-jwt = { path = "../libs/jwt" }
+token = { path = "../libs/token" }
 
 users_provider = { path = "../libs/users_provider" }
 users_provider_postgres = { path = "../libs/users_provider_postgres" }
