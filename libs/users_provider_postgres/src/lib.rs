@@ -4,6 +4,15 @@ use tracing::{
     error
 };
 
+use sqlx::Row;
+
+use chrono::{
+    DateTime,
+    NaiveDateTime
+};
+
+
+
 pub struct PostgresUsersProvider {
     dp: database_provider::DatabaseProvider
 }
@@ -129,15 +138,25 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                 .await {
                     Ok(row) => {
                         debug!("//todo {:?}", row);
+
+                        let user_id: uuid::Uuid = row.get("user_id");
+                        let active: bool = row.get("active");
+                        let created: chrono::DateTime<chrono::Utc> = row.get("created");
+                        let first_name: String = row.get("first_name");
+                        let middle_name: String = row.get("middle_name");
+                        let last_name: String = row.get("last_name");
+                        let prefix: String = row.get("prefix");
+                        let suffix: String = row.get("suffix");
+
                         return Ok(users_provider::User { 
-                            user_id: uuid::Uuid::new_v4(),
-                            active: false,
-                            created: chrono::Utc::now(),
-                            first_name: String::from("test"),
-                            middle_name: String::from("test"),
-                            last_name: String::from("test"),
-                            prefix: String::from("test"),
-                            suffix: String::from("test") 
+                            user_id,
+                            active,
+                            created,
+                            first_name,
+                            middle_name,
+                            last_name,
+                            prefix,
+                            suffix 
                         });
                     }
                     Err(e) => {
@@ -166,15 +185,25 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                 .await {
                     Ok(row) => {
                         debug!("//todo {:?}", row);
+
+                        let user_id: uuid::Uuid = row.get("user_id");
+                        let active: bool = row.get("active");
+                        let created: chrono::DateTime<chrono::Utc> = row.get("created");
+                        let first_name: String = row.get("first_name");
+                        let middle_name: String = row.get("middle_name");
+                        let last_name: String = row.get("last_name");
+                        let prefix: String = row.get("prefix");
+                        let suffix: String = row.get("suffix");
+
                         return Ok(users_provider::User { 
-                            user_id: uuid::Uuid::new_v4(),
-                            active: false,
-                            created: chrono::Utc::now(),
-                            first_name: String::from("test"),
-                            middle_name: String::from("test"),
-                            last_name: String::from("test"),
-                            prefix: String::from("test"),
-                            suffix: String::from("test") 
+                            user_id,
+                            active,
+                            created,
+                            first_name,
+                            middle_name,
+                            last_name,
+                            prefix,
+                            suffix 
                         });
                     }
                     Err(e) => {
