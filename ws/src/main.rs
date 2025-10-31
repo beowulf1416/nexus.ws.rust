@@ -1,5 +1,6 @@
 // extern crate tracing;
 
+mod classes;
 mod extractors;
 mod middleware;
 mod endpoints;
@@ -49,13 +50,17 @@ async fn main() -> std::io::Result<()> {
 
     let db_provider = database_provider::DatabaseProvider::new(&cfg);
 
+    let token_generator = token::TokenGenerator::new(&cfg.token_secret());
+
     let mut http_server = HttpServer::new(move || {
         let app = App::new()
             .wrap(actix_web::middleware::from_fn(crate::middleware::cors::cors_middleware))
+            .wrap(actix_web::middleware::from_fn(crate::middleware::auth::auth_middleware))
 
             .app_data(web::Data::new(Arc::new(cfg.clone())))
             .app_data(web::Data::new(Arc::new(mailer::Mailer::new())))
             .app_data(web::Data::new(Arc::new(db_provider.clone())))
+            .app_data(web::Data::new(Arc::new(token_generator.clone())))
 
 
             .service(web::scope("/session").configure(crate::endpoints::session::config))

@@ -21,6 +21,7 @@ actix-web = { version="4", features=["openssl"] }
 actix-http = "*"
 
 futures = "*"
+regex = "*"
 
 
 # projects
