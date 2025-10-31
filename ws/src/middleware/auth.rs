@@ -44,7 +44,7 @@ pub async fn auth_middleware(
                 }
             }
 
-            if let Some(dp_ref) = req.app_data::<web::Data<Arc<database_provider::DatabaseProvider>>>() {
+            if !user_id.is_nil() && let Some(dp_ref) = req.app_data::<web::Data<Arc<database_provider::DatabaseProvider>>>() {
                 let dp = dp_ref.get_ref();
                 let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
