@@ -20,10 +20,10 @@ use actix_web::{
 };
 
 
-use crate::endpoints::{
+use crate::{endpoints::{
     ApiResponse,
     default_option_response
-};
+}, extractors};
 
 use auth_provider::AuthProvider;
 use users_provider::UsersProvider;
@@ -39,6 +39,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(user_session_signin_post))
         )
+        .service(
+            web::resource("user")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(user_session_user_post))
+        )
     ;
 }
 
@@ -50,10 +55,13 @@ struct UserSessionSignInPost {
     pw: String
 }
 
+
+
 async fn user_session_signin_post(
     info: ConnectionInfo,
-    config: web::Data<Arc<config::Config>>,
+    // config: web::Data<Arc<config::Config>>,
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    tg: web::Data<Arc<token::TokenGenerator>>,
     params: web::Json<UserSessionSignInPost>
 ) -> impl Responder {
     info!("user_session_signin_post");
@@ -89,11 +97,16 @@ async fn user_session_signin_post(
 
         if !user.is_nil() {
             // generate jwt token
-            let tg = token::TokenGenerator::new(config.token_secret().as_str());
-            match tg.generate(
+            // let tg = token::TokenGenerator::new(config.token_secret().as_str());
+
+            let claim = token::Claim::new(
                 &user.user_id,
-                &tenants_provider::Tenant::nil().id,
+                &uuid::Uuid::nil(),
                 &params.email
+            );
+
+            match tg.generate(
+                &claim
             ) {
                 Err(e) => {
                     error!("unable to generate token: {}", e);
@@ -113,4 +126,23 @@ async fn user_session_signin_post(
     ));
 
     return response;
+}
+
+
+
+async fn user_session_user_post(
+    config: web::Data<Arc<config::Config>>,
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: extractors::user::User
+) -> impl Responder {
+    info!("user_session_user_post");
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::new(
+            true,
+            "success",
+            Some(json!({
+                "user": user
+            }))
+        ));
 }
