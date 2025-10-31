@@ -19,6 +19,43 @@ use jwt::{
 
 
 
+#[derive(Debug, Clone)]
+pub struct Claim {
+    pub user_id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
+    pub user_name: String
+}
+
+
+impl Claim {
+    pub fn new(
+        user_id: &uuid::Uuid,
+        tenant_id: &uuid::Uuid,
+        user_name: &str
+    ) -> Self {
+        return Self {
+            user_id: user_id.clone(),
+            tenant_id: tenant_id.clone(),
+            user_name: String::from(user_name)
+        };
+    }
+
+    pub fn empty() -> Self {
+        return Self {
+            user_id: uuid::Uuid::nil(),
+            tenant_id: uuid::Uuid::nil(),
+            user_name: String::from("")
+        };
+    }
+
+    pub fn is_empty(&self) -> bool {
+        return self.user_id.is_nil();
+    }
+}
+
+
+
+#[derive(Debug, Clone)]
 pub struct TokenGenerator {
     secret: String
 }
@@ -36,9 +73,7 @@ impl TokenGenerator {
 
     pub fn generate(
         &self,
-        sid: &uuid::Uuid,
-        tenant_id: &uuid::Uuid,
-        uname: &str
+        claim: &Claim
     ) -> Result<String, &'static str> {
         info!("generate");
 
@@ -51,9 +86,9 @@ impl TokenGenerator {
         claims.insert("iat", now.timestamp().to_string());
         claims.insert("exp", expiry.timestamp().to_string());
 
-        claims.insert("sid", sid.to_string());
-        claims.insert("client_id", tenant_id.to_string());
-        claims.insert("preferred_username", uname.to_string());
+        claims.insert("sid", claim.user_id.to_string());
+        claims.insert("client_id", claim.tenant_id.to_string());
+        claims.insert("preferred_username", claim.user_name.to_string());
 
         return match claims.sign_with_key(&key) {
             Err(e) => {
@@ -82,6 +117,56 @@ impl TokenGenerator {
         };
 
         return true;
+    }
+
+    pub fn claim(&self, token: &str) -> Claim {
+        info!("claim");
+
+        let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
+        let result: Result<BTreeMap<String, String>, error::Error> = token.verify_with_key(&key);
+        match result {
+            Err(e) => {
+                error!("unable to verify token: {}", e);
+                return Claim::empty();
+            }
+            Ok(claims) => {
+                let user_id = match claims.get("sid") {
+                    None => uuid::Uuid::nil(),
+                    Some(id) => {
+                        match uuid::Uuid::parse_str(id) {
+                            Err(e) => {
+                                error!("invalid user id");
+                                uuid::Uuid::nil()
+                            }
+                            Ok(uid) => uid
+                        }
+                    }
+                };
+
+                let tenant_id = match claims.get("client_id") {
+                    None => uuid::Uuid::nil(),
+                    Some(id) => 
+                        match uuid::Uuid::parse_str(id) {
+                            Err(e) => {
+                                error!("invalid user id");
+                                uuid::Uuid::nil()
+                            }
+                            Ok(tid) => tid
+                        }
+                };
+
+                let user_name = match claims.get("uname") {
+                    None => String::from(""),
+                    Some(user_name) => user_name.to_string()
+                };
+
+                return Claim::new(
+                    &user_id,
+                    &tenant_id,
+                    user_name.as_str()
+                );
+            }
+        }
     }
 }
 
