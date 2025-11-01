@@ -1,6 +1,7 @@
 use tracing::{
     info,
-    error
+    error,
+    debug
 };
 
 use std::sync::Arc;
@@ -130,19 +131,41 @@ async fn user_session_signin_post(
 
 
 
+
+#[derive(Debug, Serialize)]
+struct UserSessionResponseData {
+    name: String,
+    tenant: String,
+    permissions: Vec<u16>
+}
+
+
 async fn user_session_user_post(
-    config: web::Data<Arc<config::Config>>,
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     user: extractors::user::User
 ) -> impl Responder {
     info!("user_session_user_post");
+
+    debug!("{:?}", user);
+
+    let user_id = user.user_id();
+    let mut email = String::from("");
+
+    let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+    if let Ok(auth_details) = ap.fetch_user_by_id(&user.user_id()).await {
+        email = String::from(auth_details.email);
+    }
 
     return HttpResponse::Ok()
         .json(ApiResponse::new(
             true,
             "success",
             Some(json!({
-                "user": user
+                "user": UserSessionResponseData {
+                    name: email,
+                    tenant: String::from("todo"),
+                    permissions: vec!()
+                }
             }))
         ));
 }

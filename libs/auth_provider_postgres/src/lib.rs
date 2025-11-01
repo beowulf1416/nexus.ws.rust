@@ -115,6 +115,40 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+
+    async fn fetch_user_by_id(
+        &self,
+        user_id: &uuid::Uuid
+    ) -> Result<auth_provider::User, &'static str> {
+        info!("fetch_user_by_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from auth.user_auth_password_fetch($1);")
+                .bind(user_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(row) => {
+                        debug!("{:?}", row);
+
+                        let user_id: uuid::Uuid = row.get("user_id");
+                        let email: String = row.get("email");
+
+                        return Ok(auth_provider::User {
+                            user_id,
+                            email
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error user authentication using password: {:?}", e);
+                        return Err("Error user authentication using password");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -162,6 +196,11 @@ mod tests {
         if let Err(e) = ap.authenticate_by_password(&email, &pw).await {
             error!(e);
             assert!(false, "unable to authenticate using password");
+        }
+
+        if let Err(e) = ap.fetch_user_by_id(&user_id).await {
+            error!(e);
+            assert!(false, "unable to fetch user by id");
         }
     }
 }

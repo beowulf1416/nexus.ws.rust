@@ -34,6 +34,7 @@ pub async fn auth_middleware(
         if let Ok(token_value) = header_value.to_str() {
             let pattern = regex::Regex::new(r"(?i)bearer").unwrap();
             let token = pattern.replace(token_value, "").to_string();
+            let token = token.trim();
 
             let mut user_id = uuid::Uuid::nil();
 

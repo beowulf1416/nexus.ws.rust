@@ -1,6 +1,7 @@
 use tracing::{
     info,
-    error
+    error,
+    debug
 };
 
 use std::collections::BTreeMap;
@@ -107,12 +108,13 @@ impl TokenGenerator {
         token: &str
     ) -> bool {
         info!("validate");
+        debug!("token: [{}]", token);
 
         let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
         
         let result: Result<BTreeMap<String, String>, error::Error> = token.verify_with_key(&key);
         if let Err(e) = result {
-            error!("unable to validate token: {}" ,e);
+            error!("unable to validate token: [{}]" ,e);
             return false;
         };
 
@@ -121,12 +123,13 @@ impl TokenGenerator {
 
     pub fn claim(&self, token: &str) -> Claim {
         info!("claim");
+        debug!("token: [{}]", token);
 
         let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
         let result: Result<BTreeMap<String, String>, error::Error> = token.verify_with_key(&key);
         match result {
             Err(e) => {
-                error!("unable to verify token: {}", e);
+                error!("unable to verify token: [{}]", e);
                 return Claim::empty();
             }
             Ok(claims) => {
