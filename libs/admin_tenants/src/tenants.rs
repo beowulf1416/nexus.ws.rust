@@ -10,6 +10,7 @@ use serde::Serialize;
 use std::vec::Vec;
 
 
+#[derive(Debug, Serialize)]
 pub struct Tenant {
     id: uuid::Uuid,
     name: String
@@ -25,6 +26,13 @@ impl Tenant {
         return Self {
             id: tenant_id.clone(),
             name: String::from(name)
+        };
+    }
+
+    pub fn default() -> Self {
+        return Self {
+            id: uuid::Uuid::nil(),
+            name: String::from("default")
         };
     }
 
@@ -46,15 +54,21 @@ impl Tenant {
 
 pub trait AdminTenantsProvider {
 
-    fn tenants_fetch(
+    fn tenants_fetch_by_id(
         &self,
-        filter: &str
-    ) -> impl Future<Output = Result<Vec<Tenant>, &'static str>> + Send;
+        tenant_id: &uuid::Uuid
+    ) -> impl Future<Output = Result<Tenant, &'static str>> + Send;
 
     fn tenant_save(
         &self,
         tenant_id: &uuid::Uuid,
         name: &str,
         description: &str
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn tenant_set_active(
+        &self,
+        tenant_id: &uuid::Uuid,
+        active: bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

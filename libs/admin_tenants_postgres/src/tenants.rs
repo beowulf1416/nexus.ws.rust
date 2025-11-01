@@ -4,7 +4,7 @@ use tracing::{
     error
 };
 
-use sqlx::Row;
+use sqlx::{Row, types::chrono};
 use std::vec::Vec;
 
 
@@ -27,12 +27,39 @@ impl PostgresAdminTenantsProvider {
 
 impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvider {
 
-    async fn tenants_fetch(
+    async fn tenants_fetch_by_id(
         &self,
-        filter: &str
-    ) -> Result<Vec<admin_tenants::tenants::Tenant>, &'static str> {
-    
-        return Ok(Vec::new());
+        tenant_id: &uuid::Uuid
+    ) -> Result<admin_tenants::tenants::Tenant, &'static str> {
+        info!("tenants_fetch_by_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenants_fetch_by_id($1);")
+                .bind(tenant_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(r) => {
+                        debug!("//todo: {:?}", r);
+
+                        let tenant_id: uuid::Uuid = r.get("tenant_id");
+                        let active: bool = r.get("active");
+                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                        let name: String = r.get("name");
+                        let description: String = r.get("description");
+
+
+
+                        return Ok(admin_tenants::tenants::Tenant::default());
+                    }
+                    Err(e) => {
+                        error!("Error saving tenant record: {:?}", e);
+                        return Err("Error saving tenant record");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
     }
 
 
@@ -42,7 +69,7 @@ impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvid
         name: &str,
         description: &str
     ) -> Result<(), &'static str> {
-        info!("fetch_user_by_id");
+        info!("tenant_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.tenant_save($1,$2,$3);")
@@ -57,6 +84,34 @@ impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvid
                     Err(e) => {
                         error!("Error saving tenant record: {:?}", e);
                         return Err("Error saving tenant record");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+    async fn tenant_set_active(
+        &self,
+        tenant_id: &uuid::Uuid,
+        active: bool
+    ) -> Result<(), &'static str> {
+        info!("tenant_set_active");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenant_set_active($1,$2);")
+                .bind(tenant_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting tenant active state: {:?}", e);
+                        return Err("Error setting tenant active state");
                     }
                 }
         } else {
@@ -93,6 +148,16 @@ mod tests {
         if let Err(e) = tp.tenant_save(&tenant_id, &name, &description).await {
             error!(e);
             assert!(false, "unable to save tenant record");
+        }
+
+        if let Err(e) = tp.tenant_set_active(&tenant_id, true).await {
+            error!(e);
+            assert!(false, "unable to set tenant active state");
+        }
+
+        if let Err(e) = tp.tenants_fetch_by_id(&tenant_id).await {
+            error!(e);
+            assert!(false, "unable to fetch tenant");
         }
     }
 }
