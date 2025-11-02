@@ -34,7 +34,7 @@ impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvid
         info!("tenants_fetch_by_id");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call tenants.tenants_fetch_by_id($1);")
+            match sqlx::query("select * from tenants.tenants_fetch_by_id($1);")
                 .bind(tenant_id)
                 .fetch_one(&pool)
                 .await {
@@ -49,11 +49,17 @@ impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvid
 
 
 
-                        return Ok(admin_tenants::tenants::Tenant::default());
+                        return Ok(admin_tenants::tenants::Tenant::new(
+                            &tenant_id,
+                            active,
+                            &created,
+                            &name,
+                            &description
+                        ));
                     }
                     Err(e) => {
-                        error!("Error saving tenant record: {:?}", e);
-                        return Err("Error saving tenant record");
+                        error!("Error fetching tenant record: {:?}", e);
+                        return Err("Error fetching tenant record");
                     }
                 }
         } else {

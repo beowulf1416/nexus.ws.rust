@@ -5,6 +5,8 @@ members = [
     "libs/mailer",
     "libs/token",
     "libs/database_provider",
+    "libs/commons_provider",
+    "libs/commons_provider_postgres",
     "libs/auth_provider",
     "libs/auth_provider_postgres",
     "libs/tenants_provider",

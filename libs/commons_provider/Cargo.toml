@@ -1,19 +1,17 @@
 [package]
-name = "admin_tenants"
+name = "commons_provider"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tracing = "*"
-chrono = "*"
-sqlx = { version = "*", features = ["postgres", "uuid"] }
-
 uuid = { version = "*", features = ["v4"] }
-serde = "*"
-serde_json = "*"
+chrono = "*"
+
+
 
 # projects
 database_provider = { path = "../database_provider" }
+
 
 
 [dev-dependencies]

@@ -13,7 +13,10 @@ use std::vec::Vec;
 #[derive(Debug, Serialize)]
 pub struct Tenant {
     id: uuid::Uuid,
-    name: String
+    active: bool,
+    created: chrono::DateTime<chrono::Utc>,
+    name: String,
+    description: String
 }
 
 
@@ -21,18 +24,27 @@ impl Tenant {
 
     pub fn new(
         tenant_id: &uuid::Uuid,
-        name: &str
+        active: bool,
+        created: &chrono::DateTime<chrono::Utc>,
+        name: &str,
+        description: &str
     ) -> Self {
         return Self {
             id: tenant_id.clone(),
-            name: String::from(name)
+            active,
+            created: created.clone(),
+            name: String::from(name),
+            description: String::from(description)
         };
     }
 
     pub fn default() -> Self {
         return Self {
             id: uuid::Uuid::nil(),
-            name: String::from("default")
+            active: true,
+            created: chrono::Utc::now(),
+            name: String::from("default"),
+            description: String::from("default")
         };
     }
 
