@@ -37,6 +37,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_tenants_save))
         )
+        .service(
+            web::resource("fetch")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_tenants_fetch))
+        )
     ;
 }
 
@@ -105,4 +110,43 @@ async fn admin_tenants_save(
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"))
         ;
+}
+
+
+
+
+#[derive(Debug, Deserialize)]
+struct AdminTenantsFetchPost {
+    filter: String
+}
+
+async fn admin_tenants_fetch(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<AdminTenantsFetchPost>
+) -> impl Responder {
+    info!("admin_tenants_fetch");
+
+    let atp = admin_tenants_postgres::tenants::PostgresAdminTenantsProvider::new(&dp);
+
+    let filter = format!("%{}%", params.filter);
+
+    match atp.tenants_fetch(
+        filter.as_str()
+    ).await {
+        Err(e) => {
+            error!("unable to fetch tenant records: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch tenant records"));
+        }
+        Ok(tenants) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully retrieved tenant records",
+                    Some(json!({
+                        "tenants": tenants
+                    }))
+                ));
+        }
+    }
 }

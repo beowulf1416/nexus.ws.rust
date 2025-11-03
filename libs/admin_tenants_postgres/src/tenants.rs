@@ -125,6 +125,47 @@ impl admin_tenants::tenants::AdminTenantsProvider for PostgresAdminTenantsProvid
             return Err("Unable to get pool for 'main'");
         }
     }
+
+
+    async fn tenants_fetch(
+        &self,
+        filter: &str
+    ) -> Result<Vec<admin_tenants::tenants::Tenant>, &'static str> {
+        info!("tenants_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.tenants_fetch($1);")
+                .bind(filter)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        let tenants: Vec<admin_tenants::tenants::Tenant> = rows.iter().map(|r| {
+                            let tenant_id: uuid::Uuid = r.get("tenant_id");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let name: String = r.get("name");
+                            let description: String = r.get("description");
+
+                            return admin_tenants::tenants::Tenant::new(
+                                &tenant_id,
+                                active,
+                                &created,
+                                name.as_str(),
+                                description.as_str()
+                            );
+                        }).collect();
+                        return Ok(tenants);
+                    }
+                    Err(e) => {
+                        error!("Error fetching tenant records: {:?}", e);
+                        return Err("Error fetching tenant records");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -164,6 +205,11 @@ mod tests {
         if let Err(e) = tp.tenants_fetch_by_id(&tenant_id).await {
             error!(e);
             assert!(false, "unable to fetch tenant");
+        }
+
+        if let Err(e) = tp.tenants_fetch("%test%").await {
+            error!(e);
+            assert!(false, "unable to fetch tenants");
         }
     }
 }

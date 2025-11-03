@@ -83,4 +83,9 @@ pub trait AdminTenantsProvider {
         tenant_id: &uuid::Uuid,
         active: bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn tenants_fetch(
+        &self,
+        filter: &str
+    ) -> impl Future<Output = Result<Vec<Tenant>, &'static str>> + Send;
 }
