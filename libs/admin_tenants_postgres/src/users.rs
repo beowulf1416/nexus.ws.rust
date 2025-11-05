@@ -100,3 +100,63 @@ impl admin_tenants::users::UsersProvider for PostgresUsersProvider {
         }
     }
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use admin_tenants::tenants::AdminTenantsProvider;
+    use admin_tenants::users::UsersProvider as AdminUsersProvider;
+    use users_provider::UsersProvider;
+
+    #[actix_web::test]
+    async fn test_tenant_users() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
+
+        let cfg = config::Config::from_env();
+        let db_provider = database_provider::DatabaseProvider::new(&cfg);
+        let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+        let tenant_id = uuid::Uuid::new_v4();
+        let name = format!("test_{}", rand::random::<u16>());
+        let description = "test description";
+
+        let tp = crate::tenants::PostgresAdminTenantsProvider::new(&dp);
+
+        if let Err(e) = tp.tenant_save(&tenant_id, &name, &description).await {
+            error!(e);
+            assert!(false, "unable to save tenant record");
+        }
+
+        if let Err(e) = tp.tenant_set_active(&tenant_id, true).await {
+            error!(e);
+            assert!(false, "unable to set tenant active state");
+        }
+
+
+        let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+        let user_id = uuid::Uuid::new_v4();
+        let index = rand::random::<u16>();
+
+        let name = format!("test_{}", index);
+
+
+        if let Err(e) = up.save(
+            &user_id,
+            &name,
+            &name,
+            &name,
+            &name,
+            &name
+        ).await {
+            error!(e);
+            assert!(false, "unable to add user");
+        }
+
+
+    }
+}
