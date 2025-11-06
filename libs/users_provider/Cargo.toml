@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 uuid = { version = "*", features = ["v4"] }
 chrono = "*"
+serde = "*"

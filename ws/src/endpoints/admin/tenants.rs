@@ -20,6 +20,7 @@ use crate::endpoints::{
 };
 
 use tenants_provider::TenantsProvider;
+use users_provider::UsersProvider;
 
 
 
@@ -41,6 +42,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             web::resource("fetch")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_tenants_fetch))
+        )
+        .service(
+            web::resource("fetch/users")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_tenants_fetch_users))
         )
     ;
 }
@@ -145,6 +151,45 @@ async fn admin_tenants_fetch(
                     "successfully retrieved tenant records",
                     Some(json!({
                         "tenants": tenants
+                    }))
+                ));
+        }
+    }
+}
+
+
+
+
+#[derive(Debug, Deserialize)]
+struct AdminTenantUsersPost {
+    tenant_id: uuid::Uuid,
+    filter: String
+}
+
+async fn admin_tenants_fetch_users(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<AdminTenantUsersPost>
+) -> impl Responder {
+    info!("admin_tenants_fetch_users");
+
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+    match up.tenant_users_fetch(
+        &params.tenant_id,
+        &params.filter
+    ).await {
+        Err(e) => {
+            error!("unable to fetch tenant users: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch tenant users"));
+        }
+        Ok(users) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully retrieved tenant users",
+                    Some(json!({
+                        "users": users
                     }))
                 ));
         }
