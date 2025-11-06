@@ -19,7 +19,7 @@ use crate::endpoints::{
     default_option_response
 };
 
-use admin_tenants::tenants::AdminTenantsProvider;
+use tenants_provider::TenantsProvider;
 
 
 
@@ -58,9 +58,9 @@ async fn admin_tenants_fetch_id(
 ) -> impl Responder {
     info!("admin_tenants_fetch_id");
 
-    let atp = admin_tenants_postgres::tenants::PostgresAdminTenantsProvider::new(&dp);
+    let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-    match atp.tenants_fetch_by_id(&params.tenant_id).await {
+    match tp.tenants_fetch_by_id(&params.tenant_id).await {
         Err(e) => {
             error!("unable to fetch tenant by id: {}", e);
             return HttpResponse::InternalServerError()
@@ -95,7 +95,7 @@ async fn admin_tenants_save(
 ) -> impl Responder {
     info!("admin_tenants_save");
 
-    let atp = admin_tenants_postgres::tenants::PostgresAdminTenantsProvider::new(&dp);
+    let atp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
     if let Err(e) = atp.tenant_save(
         &params.tenant_id, 
@@ -126,7 +126,7 @@ async fn admin_tenants_fetch(
 ) -> impl Responder {
     info!("admin_tenants_fetch");
 
-    let atp = admin_tenants_postgres::tenants::PostgresAdminTenantsProvider::new(&dp);
+    let atp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
     let filter = format!("%{}%", params.filter);
 
