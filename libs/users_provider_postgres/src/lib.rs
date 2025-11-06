@@ -216,12 +216,90 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn tenant_users_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str
+    ) -> Result<std::vec::Vec<users_provider::User>, &'static str> {
+        info!("users_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.tenant_users_fetch($1, $2);")
+                .bind(tenant_id)
+                .bind(filter)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        let tenants: Vec<users_provider::User> = rows.iter().map(|r| {
+                            let user_id: uuid::Uuid = r.get("user_id");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let first_name: String = r.get("first_name");
+                            let middle_name: String = r.get("middle_name");
+                            let last_name: String = r.get("last_name");
+                            let prefix: String = r.get("prefix");
+                            let suffix: String = r.get("suffix");
+
+                            return users_provider::User::new(
+                                &user_id,
+                                &active,
+                                &created,
+                                &first_name,
+                                &middle_name,
+                                &last_name,
+                                &prefix,
+                                &suffix
+                            );
+                        }).collect();
+                        return Ok(tenants);
+                    }
+                    Err(e) => {
+                        error!("Error fetching tenant users records: {:?}", e);
+                        return Err("Error fetching tenant users records");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+
+    async fn tenant_user_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid
+    ) -> Result<(), &'static str> {
+        info!("user_save");
+        
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenant_user_save($1,$2);")
+                .bind(tenant_id)
+                .bind(user_id)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error adding tenant user: {:?}", e);
+                        return Err("Error adding tenant user");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
 #[cfg(test)]
 mod tests {
     use users_provider::UsersProvider;
+    use tenants_provider::TenantsProvider;
 
     use super::*;
 
@@ -269,5 +347,27 @@ mod tests {
             error!(e);
             assert!(false, "unable to fetch user by email");
         }
+
+
+        let tenant_id = uuid::Uuid::new_v4();
+        let name = format!("test_{}", rand::random::<u16>());
+        let description = "users_provider_postgres_test";
+
+        let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+        if let Err(e) = tp.tenant_save(&tenant_id, &name, &description).await {
+            error!(e);
+            assert!(false, "unable to save tenant into in users_provider_postgres_test");
+        }
+
+        if let Err(e) = up.tenant_user_save(&tenant_id, &user_id).await {
+            error!(e);
+            assert!(false, "unable to save tenant user");
+        }
+
+        if let Err(e) = up.tenant_users_fetch(&tenant_id, &"%").await {
+            error!(e);
+            assert!(false, "unable to fetch tenant users");
+        }
+
     }
 }

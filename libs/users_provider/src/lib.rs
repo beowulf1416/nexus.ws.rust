@@ -12,6 +12,28 @@ pub struct User {
 
 impl User {
 
+    pub fn new(
+        user_id: &uuid::Uuid,
+        active: &bool,
+        created: &chrono::DateTime<chrono::Utc>,
+        first_name: &str,
+        middle_name: &str,
+        last_name: &str,
+        prefix: &str,
+        suffix: &str
+    ) -> Self {
+        return Self {
+            user_id: user_id.clone(),
+            active: active.clone(),
+            created: created.clone(),
+            first_name: first_name.to_string(),
+            middle_name: middle_name.to_string(),
+            last_name: last_name.to_string(),
+            prefix: prefix.to_string(),
+            suffix: suffix.to_string()
+        };
+    }
+
     pub fn nil() -> Self {
         return Self {
             user_id: uuid::Uuid::nil(),
@@ -65,4 +87,18 @@ pub trait UsersProvider {
         &self,
         email: &str
     ) -> impl Future<Output = Result<User, &'static str>> + Send;
+
+
+    fn tenant_users_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str
+    ) -> impl Future<Output = Result<std::vec::Vec<User>, &'static str>> + Send;
+
+
+    fn tenant_user_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
