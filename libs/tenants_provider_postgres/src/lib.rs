@@ -102,7 +102,7 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
     async fn tenant_set_active(
         &self,
         tenant_id: &uuid::Uuid,
-        active: bool
+        active: &bool
     ) -> Result<(), &'static str> {
         info!("tenant_set_active");
 
@@ -118,6 +118,34 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                     Err(e) => {
                         error!("Error setting tenant active state: {:?}", e);
                         return Err("Error setting tenant active state");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+    async fn tenants_set_active(
+        &self,
+        tenant_ids: &Vec<uuid::Uuid>,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("tenants_set_active");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenants_set_active($1,$2);")
+                .bind(tenant_ids)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting tenants active state: {:?}", e);
+                        return Err("Error setting tenants active state");
                     }
                 }
         } else {
@@ -197,7 +225,13 @@ mod tests {
             assert!(false, "unable to save tenant record");
         }
 
-        if let Err(e) = tp.tenant_set_active(&tenant_id, true).await {
+        if let Err(e) = tp.tenant_set_active(&tenant_id, &true).await {
+            error!(e);
+            assert!(false, "unable to set tenant active state");
+        }
+
+        let tenant_ids = vec![tenant_id];
+        if let Err(e) = tp.tenants_set_active(&tenant_ids, &true).await {
             error!(e);
             assert!(false, "unable to set tenant active state");
         }

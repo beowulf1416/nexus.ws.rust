@@ -87,7 +87,13 @@ pub trait TenantsProvider {
     fn tenant_set_active(
         &self,
         tenant_id: &uuid::Uuid,
-        active: bool
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn tenants_set_active(
+        &self,
+        tenant_ids: &Vec<uuid::Uuid>,
+        active: &bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
     fn tenants_fetch(

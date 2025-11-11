@@ -48,6 +48,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_tenants_fetch_users))
         )
+        .service(
+            web::resource("set/active")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_tenants_set_active))
+        )
     ;
 }
 
@@ -192,6 +197,39 @@ async fn admin_tenants_fetch_users(
                         "users": users
                     }))
                 ));
+        }
+    }
+}
+
+
+
+
+#[derive(Debug, Deserialize)]
+struct AdminTenantSetActive {
+    tenant_ids: Vec<uuid::Uuid>,
+    active: bool
+}
+
+async fn admin_tenants_set_active(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<AdminTenantSetActive>
+) -> impl Responder {
+    info!("admin_tenants_set_active");
+
+    let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+
+    match tp.tenants_set_active(
+        &params.tenant_ids,
+        &params.active
+    ).await {
+        Err(e) => {
+            error!("unable to set tenants active state: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to set tenants active state"));
+        }
+        Ok(users) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully set tenants active state"));
         }
     }
 }
