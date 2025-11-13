@@ -217,6 +217,57 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         }
     }
 
+
+    async fn fetch(
+        &self,
+        filter: &str
+    ) -> Result<Vec<users_provider::User>, &'static str> {
+        info!("save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from users.users_fetch($1);")
+                .bind(filter)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        debug!("//todo {:?}", rows);
+
+                        let users: Vec<users_provider::User> = rows.iter().map(|r| {
+                            let user_id: uuid::Uuid = r.get("user_id");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let first_name: String = r.get("first_name");
+                            let middle_name: String = r.get("middle_name");
+                            let last_name: String = r.get("last_name");
+                            let prefix: String = r.get("prefix");
+                            let suffix: String = r.get("suffix");
+
+                            return users_provider::User::new( 
+                                &user_id,
+                                &active,
+                                &created,
+                                &first_name,
+                                &middle_name,
+                                &last_name,
+                                &prefix,
+                                &suffix 
+                            );
+                        }).collect();
+
+                        return Ok(users);
+                    }
+                    Err(e) => {
+                        error!("Error fetching users: {:?}", e);
+                        return Err("Error fetching users");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn tenant_users_fetch(
         &self,
         tenant_id: &uuid::Uuid,
@@ -346,6 +397,11 @@ mod tests {
         if let Err(e) = up.fetch_by_email(&email).await {
             error!(e);
             assert!(false, "unable to fetch user by email");
+        }
+
+        if let Err(e) = up.fetch("%").await {
+            error!(e);
+            assert!(false, "unable to fetch users");
         }
 
 

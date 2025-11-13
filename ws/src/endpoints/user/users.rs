@@ -40,6 +40,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(users_set_password_post))
         )
+        .service(
+            web::resource("search")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(users_search_post))
+        )
     ;
 }
 
@@ -96,6 +101,27 @@ async fn users_set_password_post(
 
     
 
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("success"))
+        ;
+}
+
+
+
+
+#[derive(Debug, Deserialize)]
+struct UsersSearchPost {
+    filter: String
+}
+
+async fn users_search_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<UsersSearchPost>
+) -> impl Responder {
+    info!("users_search_post");
+
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"))

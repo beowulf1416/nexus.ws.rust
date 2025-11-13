@@ -91,6 +91,11 @@ pub trait UsersProvider {
         email: &str
     ) -> impl Future<Output = Result<User, &'static str>> + Send;
 
+    fn fetch(
+        &self,
+        filter: &str
+    ) -> impl Future<Output = Result<Vec<User>, &'static str>> + Send;
+
 
     fn tenant_users_fetch(
         &self,
