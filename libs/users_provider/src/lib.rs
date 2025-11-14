@@ -9,7 +9,8 @@ pub struct User {
     pub middle_name: String,
     pub last_name: String,
     pub prefix: String,
-    pub suffix: String
+    pub suffix: String,
+    pub email: String
 }
 
 
@@ -23,17 +24,19 @@ impl User {
         middle_name: &str,
         last_name: &str,
         prefix: &str,
-        suffix: &str
+        suffix: &str,
+        email: &str
     ) -> Self {
         return Self {
             user_id: user_id.clone(),
             active: active.clone(),
             created: created.clone(),
-            first_name: first_name.to_string(),
-            middle_name: middle_name.to_string(),
-            last_name: last_name.to_string(),
-            prefix: prefix.to_string(),
-            suffix: suffix.to_string()
+            first_name: String::from(first_name),
+            middle_name: String::from(middle_name),
+            last_name: String::from(last_name),
+            prefix: String::from(prefix),
+            suffix: String::from(suffix),
+            email: String::from(email)
         };
     }
 
@@ -46,7 +49,8 @@ impl User {
             middle_name: String::from(""),
             last_name: String::from(""),
             prefix: String::from(""),
-            suffix: String::from("")
+            suffix: String::from(""),
+            email: String::from("")
         };
     }
 

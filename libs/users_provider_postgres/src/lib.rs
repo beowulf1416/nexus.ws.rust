@@ -147,6 +147,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                         let last_name: String = row.get("last_name");
                         let prefix: String = row.get("prefix");
                         let suffix: String = row.get("suffix");
+                        let email: String = row.get("email");
 
                         return Ok(users_provider::User { 
                             user_id,
@@ -156,7 +157,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                             middle_name,
                             last_name,
                             prefix,
-                            suffix 
+                            suffix,
+                            email
                         });
                     }
                     Err(e) => {
@@ -194,6 +196,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                         let last_name: String = row.get("last_name");
                         let prefix: String = row.get("prefix");
                         let suffix: String = row.get("suffix");
+                        let email: String = row.get("email");
 
                         return Ok(users_provider::User { 
                             user_id,
@@ -203,7 +206,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                             middle_name,
                             last_name,
                             prefix,
-                            suffix 
+                            suffix,
+                            email
                         });
                     }
                     Err(e) => {
@@ -241,6 +245,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                             let last_name: String = r.get("last_name");
                             let prefix: String = r.get("prefix");
                             let suffix: String = r.get("suffix");
+                            let email: String = r.get("email");
 
                             return users_provider::User::new( 
                                 &user_id,
@@ -250,7 +255,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                                 &middle_name,
                                 &last_name,
                                 &prefix,
-                                &suffix 
+                                &suffix,
+                                &email
                             );
                         }).collect();
 
@@ -291,6 +297,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                             let last_name: String = r.get("last_name");
                             let prefix: String = r.get("prefix");
                             let suffix: String = r.get("suffix");
+                            let email: String = r.get("email");
 
                             return users_provider::User::new(
                                 &user_id,
@@ -300,7 +307,8 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                                 &middle_name,
                                 &last_name,
                                 &prefix,
-                                &suffix
+                                &suffix,
+                                &email
                             );
                         }).collect();
                         return Ok(tenants);

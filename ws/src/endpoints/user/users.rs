@@ -24,6 +24,7 @@ use crate::endpoints::{
     default_option_response
 };
 
+use auth_provider::AuthProvider;
 use users_provider::UsersProvider;
 
 
@@ -31,23 +32,82 @@ use users_provider::UsersProvider;
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
         .service(
-            web::resource("active/set")
+            web::resource("create")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(users_create_post))
+        )
+        .service(
+            web::resource("set/active")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(users_set_active_post))
         )
         .service(
-            web::resource("password/set")
+            web::resource("set/password")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(users_set_password_post))
         )
         .service(
-            web::resource("search")
+            web::resource("fetch")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(users_search_post))
+                .route(web::post().to(users_fetch_post))
         )
     ;
 }
 
+
+
+
+#[derive(Debug, Deserialize)]
+struct UsersCreatePost {
+    user_id: uuid::Uuid,
+    email: String,
+    pw: String
+}
+
+async fn users_create_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<UsersCreatePost>
+) -> impl Responder {
+    info!("users_create_post");
+
+    let authp = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+    if let Err(e) = up.save(
+        &params.user_id, 
+        &"",
+        &"",
+        &"",
+        &"",
+        &""
+    ).await {
+        error!("unable to save user data: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("unable to save user data"));
+    }
+
+    if let Err(e) = up.add_email(
+        &params.user_id,
+        &params.email
+    ).await {
+        error!("unable to save user email: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("unable to save user email"));
+    }
+
+    if let Err(e) = authp.add_user_auth_password(
+        &params.user_id, 
+        &params.email,
+        &params.pw
+    ).await {
+        error!("unable to add user account: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("unable to add user account"));
+    }
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("successfully create user account"));
+}
 
 
 #[derive(Debug, Deserialize)]
@@ -111,19 +171,34 @@ async fn users_set_password_post(
 
 
 #[derive(Debug, Deserialize)]
-struct UsersSearchPost {
+struct UsersFetchPost {
     filter: String
 }
 
-async fn users_search_post(
+async fn users_fetch_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<UsersSearchPost>
+    params: web::Json<UsersFetchPost>
 ) -> impl Responder {
-    info!("users_search_post");
+    info!("users_fetch_post");
 
     let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
-
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+    match up.fetch(
+        &params.filter
+    ).await {
+        Err(e) => {
+            error!("unable to fetch users: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch users"));
+        }
+        Ok(users) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully retrieved users",
+                    Some(json!({
+                        "users": users
+                    }))
+                ))
+        }
+    };
 }
