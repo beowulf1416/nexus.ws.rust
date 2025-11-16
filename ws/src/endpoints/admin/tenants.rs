@@ -21,6 +21,10 @@ use crate::endpoints::{
 
 use tenants_provider::TenantsProvider;
 use users_provider::UsersProvider;
+use roles_provider::{ 
+    Role,
+    RolesProvider
+};
 
 
 
@@ -52,6 +56,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             web::resource("set/active")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_tenants_set_active))
+        )
+        .service(
+            web::resource("role/save")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_role_save_post))
         )
     ;
 }
@@ -197,6 +206,49 @@ async fn admin_tenants_fetch_users(
                         "users": users
                     }))
                 ));
+        }
+    }
+}
+
+
+
+
+#[derive(Debug, Deserialize)]
+struct RoleSavePost {
+    tenant_id: uuid::Uuid,
+    role_id: uuid::Uuid,
+    name: String,
+    description: String
+}
+
+async fn admin_role_save_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RoleSavePost>
+) -> impl Responder {
+    info!("admin_role_save_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    let role = roles_provider::Role {
+        role_id: params.role_id,
+        name: params.name.clone(),
+        description: params.description.clone(),
+        active: true,
+        created: chrono::Utc::now()
+    };
+
+    match rp.save(
+        &params.tenant_id,
+        &role
+    ).await {
+        Err(e) => {
+            error!("unable to add role: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to add role"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully added role"));
         }
     }
 }

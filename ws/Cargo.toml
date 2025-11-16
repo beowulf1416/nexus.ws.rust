@@ -9,6 +9,8 @@ tracing-subscriber = "*"
 
 # env_logger = "*"
 
+chrono = "*"
+
 serde = { version="*", features=["derive"]}
 serde_json = "*"
 envy = "*"
@@ -36,6 +38,9 @@ users_provider_postgres = { path = "../libs/users_provider_postgres" }
 
 tenants_provider = { path = "../libs/tenants_provider" }
 tenants_provider_postgres = { path = "../libs/tenants_provider_postgres" }
+
+roles_provider = { path = "../libs/roles_provider" }
+roles_provider_postgres = { path = "../libs/roles_provider_postgres" }
 
 user_registration = { path = "../libs/user_registration" }
 user_registration_postgres = { path = "../libs/user_registration_postgres" }
