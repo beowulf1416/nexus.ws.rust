@@ -51,6 +51,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(users_fetch_post))
         )
+        .service(
+            web::resource("assign/tenants")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(users_tenants_assign_post))
+        )
     ;
 }
 
@@ -201,4 +206,22 @@ async fn users_fetch_post(
                 ))
         }
     };
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct UsersAssignTenantsPost {
+    user_ids: Vec<uuid::Uuid>,
+    tenant_ids: Vec<uuid::Uuid>
+}
+
+async fn users_tenants_assign_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<UsersAssignTenantsPost>
+) -> impl Responder {
+    info!("users_tenants_assign_post");
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("//todo users_tenants_assign_post"));
 }

@@ -113,4 +113,10 @@ pub trait UsersProvider {
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn tenant_assign(
+        &self,
+        user_ids: &Vec<uuid::Uuid>,
+        tenant_ids: &Vec<uuid::Uuid>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

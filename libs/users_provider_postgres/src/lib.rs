@@ -226,7 +226,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         &self,
         filter: &str
     ) -> Result<Vec<users_provider::User>, &'static str> {
-        info!("save");
+        info!("fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from users.users_fetch($1);")
@@ -352,6 +352,33 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn tenant_assign(
+        &self,
+        user_ids: &Vec<uuid::Uuid>,
+        tenant_ids: &Vec<uuid::Uuid>
+    ) -> Result<(), &'static str> {
+        info!("tenant_assign");
+        
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenant_users_assign($1,$2);")
+                .bind(tenant_ids)
+                .bind(user_ids)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error assigning user to tenant: {:?}", e);
+                        return Err("Error assigning user to tenant");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -433,5 +460,13 @@ mod tests {
             assert!(false, "unable to fetch tenant users");
         }
 
+
+        if let Err(e) = up.tenant_assign(
+            &vec![user_id], 
+            &vec![tenant_id]
+        ).await {
+            error!(e);
+            assert!(false, "unable to fetch assign users to tenants");
+        }
     }
 }
