@@ -42,6 +42,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::post().to(users_set_active_post))
         )
         .service(
+            web::resource("set/active/multiple")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(users_set_active_multiple_post))
+        )
+        .service(
             web::resource("set/password")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(users_set_password_post))
@@ -143,6 +148,37 @@ async fn users_set_active_post(
     return HttpResponse::Ok()
         .json(ApiResponse::ok("success"))
         ;
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct UserSetActiveMultiplePost {
+    user_ids: Vec<uuid::Uuid>,
+    active: bool
+}
+
+async fn users_set_active_multiple_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<UserSetActiveMultiplePost>
+) -> impl Responder {
+    info!("users_set_active_multiple_post");
+
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+    if let Err(e) = up.set_active_multiple(
+        &params.user_ids,
+        &params.active
+    ).await {
+        error!("unable to set multiple user active status: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("unable to set multiple user active status"));
+    }
+
+    return HttpResponse::Ok()
+        .json(ApiResponse::ok("success"))
+        ;
+    
 }
 
 

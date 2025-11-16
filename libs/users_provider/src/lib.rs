@@ -79,6 +79,12 @@ pub trait UsersProvider {
         active: &bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
+    fn set_active_multiple(
+        &self,
+        user_id: &Vec<uuid::Uuid>,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
     fn add_email(
         &self,
         user_id: &uuid::Uuid,

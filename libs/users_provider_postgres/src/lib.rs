@@ -96,6 +96,34 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
     }
 
 
+    async fn set_active_multiple(
+        &self,
+        user_ids: &Vec<uuid::Uuid>,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("set_active");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call users.users_set_active_multiple($1,$2);")
+                .bind(user_ids)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting user active status: {:?}", e);
+                        return Err("Error setting user active status");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
 
     async fn add_email(
         &self,
@@ -417,6 +445,14 @@ mod tests {
         if let Err(e) = up.set_active(&user_id, &true).await {
             error!(e);
             assert!(false, "unable to set user active state");
+        }
+
+        if let Err(e) = up.set_active_multiple(
+            &vec!(user_id),
+            &true
+        ).await {
+            error!(e);
+            assert!(false, "unable to set multiple user active state");
         }
 
         if let Err(e) = up.add_email(&user_id, &email).await {
