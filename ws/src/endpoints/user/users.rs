@@ -257,7 +257,21 @@ async fn users_tenants_assign_post(
     params: web::Json<UsersAssignTenantsPost>
 ) -> impl Responder {
     info!("users_tenants_assign_post");
+    // debug!("params: {:?}", params);
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("//todo users_tenants_assign_post"));
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+    match up.tenant_assign(
+        &params.user_ids,
+        &params.tenant_ids
+    ).await {
+        Err(e) => {
+            error!("unable to assign users to tenants: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to assign users to tenants"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("//todo users_tenants_assign_post"));
+        }
+    }
 }
