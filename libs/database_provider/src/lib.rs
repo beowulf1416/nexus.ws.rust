@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use tracing::{
     info,
     error

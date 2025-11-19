@@ -64,7 +64,7 @@ impl User {
         user_name: &str
     ) -> Self {
         return Self {
-            user_id: user_id.clone(),
+            user_id: *user_id,
             user_name: String::from(user_name)
         };
     }

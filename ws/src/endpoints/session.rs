@@ -83,7 +83,7 @@ async fn user_session_signin_post(
 
     let mut rb = HttpResponse::Ok();
 
-    if (authentic) {
+    if authentic {
         let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
         let user = match up.fetch_by_email(&params.email).await {
@@ -153,7 +153,7 @@ async fn user_session_user_post(
 
     let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
     if let Ok(auth_details) = ap.fetch_user_by_id(&user.user_id()).await {
-        email = String::from(auth_details.email);
+        email = auth_details.email;
     }
 
     return HttpResponse::Ok()

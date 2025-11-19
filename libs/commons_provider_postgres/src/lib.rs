@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use tracing::{
     info,
     error,
@@ -80,10 +82,10 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                             let symbol: Option<String> = r.get("symbol");
 
                             return commons_provider::Currency { 
-                                id: currency_id.clone(), 
-                                name: String::from(currency),
-                                unit_text: String::from(unit_text),
-                                symbol: symbol
+                                id: currency_id, 
+                                name: currency,
+                                unit_text,
+                                symbol
                             };
 
                         }).collect();
@@ -115,8 +117,8 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                             let name: String = r.get("name");
 
                             return commons_provider::Gender { 
-                                id: gender_id.clone(), 
-                                name: String::from(name)
+                                id: gender_id,
+                                name
                             };
 
                         }).collect();

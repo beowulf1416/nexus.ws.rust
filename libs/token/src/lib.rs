@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use tracing::{
     info,
     error,
@@ -35,7 +37,7 @@ impl Claim {
         user_name: &str
     ) -> Self {
         return Self {
-            user_id: user_id.clone(),
+            user_id: *user_id,
             tenant_id: tenant_id.clone(),
             user_name: String::from(user_name)
         };

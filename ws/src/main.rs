@@ -1,3 +1,6 @@
+#![deny(clippy::unwrap_used)]
+#![allow(clippy::needless_return)]
+
 // extern crate tracing;
 
 mod classes;

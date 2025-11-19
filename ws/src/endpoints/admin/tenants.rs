@@ -279,7 +279,7 @@ async fn admin_tenants_set_active(
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to set tenants active state"));
         }
-        Ok(users) => {
+        Ok(_) => {
             return HttpResponse::Ok()
                 .json(ApiResponse::ok("successfully set tenants active state"));
         }
