@@ -19,8 +19,9 @@ pub trait RolesProvider {
         role: &Role
     ) -> impl Future<Output = Result<(), &'static str>> + Send; 
 
-    // fn fetch_by_id(
-    //     &self,
-    //     role_id: &uuid::Uuid
-    // ) -> impl Future<Output = Result<Role, &'static str>> + Send;
+    fn fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str
+    ) -> impl Future<Output = Result<Vec<Role>, &'static str>> + Send;
 }

@@ -6,6 +6,8 @@ use tracing::{
     debug
 };
 
+use sqlx::Row;
+
 
 
 pub struct PostgresRolesProvider {
@@ -56,12 +58,47 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
     }
 
 
-    // async fn fetch_by_id(
-    //     &self,
-    //     role_id: &uuid::Uuid
-    // ) -> Result<roles_provider::Role, &'static str> {
-        
-    // }
+    async fn fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str
+    ) -> Result<Vec<roles_provider::Role>, &'static str> {
+        info!("fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.roles_fetch($1,$2);")
+                .bind(tenant_id)
+                .bind(filter)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows ) => {
+                        let roles: Vec<roles_provider::Role> = rows.iter().map(|r| {
+                            let role_id: uuid::Uuid = r.get("role_id");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let name: String = r.get("name");
+                            let description: String = r.get("description");
+
+                            return roles_provider::Role {
+                                role_id,
+                                name,
+                                description,
+                                active,
+                                created
+                            };
+                        }).collect();
+                        return Ok(roles);
+                    }
+                    Err(e) => {
+                        error!("Error saving role record: {:?}", e);
+                        return Err("Error saving role record");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -111,6 +148,11 @@ mod tests {
         if let Err(e) = rp.save(&tenant_id, &role).await {
             error!("unable to create role: {:?}", e);
             assert!(false, "unable to create role");
+        }
+
+        if let Err(e) = rp.fetch(&tenant_id, "%").await {
+            error!("unable to fetch roles: {}", e);
+            assert!(false, "unable to fetch roles");
         }
     }
 }
