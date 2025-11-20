@@ -90,14 +90,70 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                         return Ok(roles);
                     }
                     Err(e) => {
-                        error!("Error saving role record: {:?}", e);
-                        return Err("Error saving role record");
+                        error!("Error fetching role records: {:?}", e);
+                        return Err("Error fetching role records");
                     }
                 }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
+    }
+
+
+    async fn assign_users(
+        &self,
+        role_id: &uuid::Uuid,
+        user_ids: &Vec<uuid::Uuid>
+    ) -> Result<(), &'static str> {
+        info!("assign_users");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_users_add($1, $2);")
+                .bind(role_id)
+                .bind(user_ids)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error assigning users to role: {:?}", e);
+                        return Err("Error assigning users to role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn revoke_users(
+        &self,
+        role_id: &uuid::Uuid,
+        user_ids: &Vec<uuid::Uuid>
+    ) -> Result<(), &'static str> {
+        info!("revoke_users");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_users_revoke($1, $2);")
+                .bind(role_id)
+                .bind(user_ids)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error revoking users from role: {:?}", e);
+                        return Err("Error revoking users from role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+        
     }
 }
 

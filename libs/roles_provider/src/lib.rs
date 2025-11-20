@@ -1,7 +1,10 @@
-use serde::Deserialize;
+use serde::{
+    Serialize,
+    Deserialize
+};
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Role {
     pub role_id: uuid::Uuid,
     pub name: String,
@@ -24,4 +27,16 @@ pub trait RolesProvider {
         tenant_id: &uuid::Uuid,
         filter: &str
     ) -> impl Future<Output = Result<Vec<Role>, &'static str>> + Send;
+
+    fn assign_users(
+        &self,
+        role_id: &uuid::Uuid,
+        user_ids: &Vec<uuid::Uuid>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn revoke_users(
+        &self,
+        role_id: &uuid::Uuid,
+        user_ids: &Vec<uuid::Uuid>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

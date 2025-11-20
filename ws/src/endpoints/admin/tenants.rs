@@ -62,6 +62,21 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_role_save_post))
         )
+        .service(
+            web::resource("roles/fetch")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_roles_fetch_post))
+        )
+        .service(
+            web::resource("role/assign")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_role_assign_post))
+        )
+        .service(
+            web::resource("role/revoke")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_role_revoke_post))
+        )
     ;
 }
 
@@ -254,6 +269,98 @@ async fn admin_role_save_post(
 }
 
 
+
+#[derive(Debug, Deserialize)]
+struct RolesFetchPost {
+    tenant_id: uuid::Uuid,
+    filter: String
+}
+
+async fn admin_roles_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RolesFetchPost>
+) -> impl Responder {
+    info!("admin_roles_fetch_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.fetch(
+        &params.tenant_id,
+        &params.filter
+    ).await {
+        Err(e) => {
+            error!("unable to fetch roles: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch roles"));
+        }
+        Ok(roles) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully fetched roles",
+                    Some(json!({
+                        "roles": roles
+                    }))
+                ));
+        }
+    }
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct RoleAssignmentPost {
+    role_id: uuid::Uuid,
+    user_ids: Vec<uuid::Uuid>
+}
+
+async fn admin_role_assign_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RoleAssignmentPost>
+) -> impl Responder {
+    info!("admin_role_assign_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.assign_users(
+        &params.role_id,
+        &params.user_ids
+    ).await {
+        Err(e) => {
+            error!("unable to assign role to users: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to assign role to users"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully assigned role to users"));
+        }
+    }
+}
+
+async fn admin_role_revoke_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RoleAssignmentPost>
+) -> impl Responder {
+    info!("admin_role_revoke_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.revoke_users(
+        &params.role_id,
+        &params.user_ids
+    ).await {
+        Err(e) => {
+            error!("unable to revoke role from users: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to revoke role from users"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully revoked role from users"));
+        }
+    }
+}
 
 
 #[derive(Debug, Deserialize)]
