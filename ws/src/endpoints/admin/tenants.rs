@@ -286,7 +286,8 @@ async fn admin_roles_fetch_post(
 
     match rp.fetch(
         &params.tenant_id,
-        &params.filter
+        // &params.filter
+        format!("%{}%", params.filter).as_str()
     ).await {
         Err(e) => {
             error!("unable to fetch roles: {}", e);
