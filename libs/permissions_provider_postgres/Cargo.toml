@@ -1,0 +1,27 @@
+[package]
+name = "permissions_provider_postgres"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "*", features = ["v4"] }
+chrono = "*"
+serde = "*"
+serde_json = "*"
+
+tracing = "*"
+sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+
+# projects
+database_provider = { path = "../database_provider" }
+permissions_provider = { path = "../permissions_provider" }
+
+
+
+[dev-dependencies]
+tracing-subscriber = "*"
+rand = "*"
+actix-web = "*"
+
+config = { path = "../config" }

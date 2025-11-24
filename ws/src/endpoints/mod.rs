@@ -1,4 +1,5 @@
 pub mod session;
+pub mod permissions;
 pub mod user;
 pub mod admin;
 

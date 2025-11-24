@@ -33,6 +33,12 @@ database_provider = { path = "../libs/database_provider" }
 
 token = { path = "../libs/token" }
 
+commons_provider = { path = "../libs/commons_provider" }
+commons_provider_postgres = { path = "../libs/commons_provider_postgres" }
+
+permissions_provider = { path = "../libs/permissions_provider" }
+permissions_provider_postgres = { path = "../libs/permissions_provider_postgres" }
+
 users_provider = { path = "../libs/users_provider" }
 users_provider_postgres = { path = "../libs/users_provider_postgres" }
 
