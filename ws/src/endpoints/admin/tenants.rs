@@ -311,7 +311,7 @@ async fn admin_roles_fetch_post(
 
 #[derive(Debug, Deserialize)]
 struct RoleAssignmentPost {
-    role_id: uuid::Uuid,
+    role_ids: Vec<uuid::Uuid>,
     user_ids: Vec<uuid::Uuid>
 }
 
@@ -324,7 +324,7 @@ async fn admin_role_assign_post(
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
     match rp.assign_users(
-        &params.role_id,
+        &params.role_ids,
         &params.user_ids
     ).await {
         Err(e) => {
@@ -348,7 +348,7 @@ async fn admin_role_revoke_post(
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
     match rp.revoke_users(
-        &params.role_id,
+        &params.role_ids,
         &params.user_ids
     ).await {
         Err(e) => {

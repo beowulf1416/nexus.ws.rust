@@ -103,14 +103,14 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
 
     async fn assign_users(
         &self,
-        role_id: &uuid::Uuid,
+        role_ids: &Vec<uuid::Uuid>,
         user_ids: &Vec<uuid::Uuid>
     ) -> Result<(), &'static str> {
         info!("assign_users");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.role_users_add($1, $2);")
-                .bind(role_id)
+                .bind(role_ids)
                 .bind(user_ids)
                 .execute(&pool)
                 .await {
@@ -130,14 +130,14 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
 
     async fn revoke_users(
         &self,
-        role_id: &uuid::Uuid,
+        role_ids: &Vec<uuid::Uuid>,
         user_ids: &Vec<uuid::Uuid>
     ) -> Result<(), &'static str> {
         info!("revoke_users");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call tenants.role_users_revoke($1, $2);")
-                .bind(role_id)
+            match sqlx::query("call tenants.role_users_remove($1, $2);")
+                .bind(role_ids)
                 .bind(user_ids)
                 .execute(&pool)
                 .await {
@@ -153,7 +153,62 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
-        
+    }
+
+    
+    async fn assign_permissions(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        permission_ids: &Vec<i32>
+    ) -> Result<(), &'static str> {
+        info!("assign_permissions");    
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_permissions_add($1, $2);")
+                .bind(role_ids)
+                .bind(permission_ids)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error assigning permissions for role: {:?}", e);
+                        return Err("Error assigning permissions for role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+    async fn revoke_permissions(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        permission_ids: &Vec<i32>
+    ) -> Result<(), &'static str> {
+        info!("revoke_permissions");    
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_permissions_remove($1, $2);")
+                .bind(role_ids)
+                .bind(permission_ids)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error revoking permissions from role: {:?}", e);
+                        return Err("Error revoking permissions from role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
     }
 }
 
@@ -209,6 +264,22 @@ mod tests {
         if let Err(e) = rp.fetch(&tenant_id, "%").await {
             error!("unable to fetch roles: {}", e);
             assert!(false, "unable to fetch roles");
+        }
+
+        if let Err(e) = rp.assign_permissions(
+            &vec!(role_id),
+            &vec!(1)
+        ).await {
+            error!("unable to assign permission to role: {}", e);
+            assert!(false, "unable to assign permission to role");
+        }
+
+        if let Err(e) = rp.revoke_permissions(
+            &vec!(role_id),
+            &vec!(1)
+        ).await {
+            error!("unable to revoke permission from role: {}", e);
+            assert!(false, "unable to revoke permission from role");
         }
     }
 }

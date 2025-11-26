@@ -30,13 +30,25 @@ pub trait RolesProvider {
 
     fn assign_users(
         &self,
-        role_id: &uuid::Uuid,
+        role_ids: &Vec<uuid::Uuid>,
         user_ids: &Vec<uuid::Uuid>
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
     fn revoke_users(
         &self,
-        role_id: &uuid::Uuid,
+        role_ids: &Vec<uuid::Uuid>,
         user_ids: &Vec<uuid::Uuid>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn assign_permissions(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        permission_ids: &Vec<i32>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn revoke_permissions(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        permission_ids: &Vec<i32>
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
