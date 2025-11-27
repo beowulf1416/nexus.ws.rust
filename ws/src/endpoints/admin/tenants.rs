@@ -68,14 +68,24 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::post().to(admin_roles_fetch_post))
         )
         .service(
-            web::resource("role/assign")
+            web::resource("role/assign/users")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_assign_post))
+                .route(web::post().to(admin_role_assign_users_post))
         )
         .service(
-            web::resource("role/revoke")
+            web::resource("role/revoke/users")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_revoke_post))
+                .route(web::post().to(admin_role_revoke_users_post))
+        )
+        .service(
+            web::resource("role/assign/permissions")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_role_assign_permissions_post))
+        )
+        .service(
+            web::resource("role/revoke/permissions")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(admin_role_revoke_permissions_post))
         )
     ;
 }
@@ -310,14 +320,14 @@ async fn admin_roles_fetch_post(
 
 
 #[derive(Debug, Deserialize)]
-struct RoleAssignmentPost {
+struct RoleUserAssignmentPost {
     role_ids: Vec<uuid::Uuid>,
     user_ids: Vec<uuid::Uuid>
 }
 
-async fn admin_role_assign_post(
+async fn admin_role_assign_users_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleAssignmentPost>
+    params: web::Json<RoleUserAssignmentPost>
 ) -> impl Responder {
     info!("admin_role_assign_post");
 
@@ -339,9 +349,9 @@ async fn admin_role_assign_post(
     }
 }
 
-async fn admin_role_revoke_post(
+async fn admin_role_revoke_users_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleAssignmentPost>
+    params: web::Json<RoleUserAssignmentPost>
 ) -> impl Responder {
     info!("admin_role_revoke_post");
 
@@ -359,6 +369,63 @@ async fn admin_role_revoke_post(
         Ok(_) => {
             return HttpResponse::Ok()
                 .json(ApiResponse::ok("successfully revoked role from users"));
+        }
+    }
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct RolePermissionsAssignmentPost {
+    role_ids: Vec<uuid::Uuid>,
+    permission_ids: Vec<i32>
+}
+
+async fn admin_role_assign_permissions_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RolePermissionsAssignmentPost>
+) -> impl Responder {
+    info!("admin_role_assign_permissions_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.assign_permissions(
+        &params.role_ids,
+        &params.permission_ids
+    ).await {
+        Err(e) => {
+            error!("unable to assign permissions to role: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to assign permissions to role"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully assigned permissions to role"));
+        }
+    }
+}
+
+
+async fn admin_role_revoke_permissions_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RolePermissionsAssignmentPost>
+) -> impl Responder {
+    info!("admin_role_revoke_permissions_post");
+
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.revoke_permissions(
+        &params.role_ids,
+        &params.permission_ids
+    ).await {
+        Err(e) => {
+            error!("unable to revoke permissions from role: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to revoke permissions from role"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully revoke permissions from role"));
         }
     }
 }
