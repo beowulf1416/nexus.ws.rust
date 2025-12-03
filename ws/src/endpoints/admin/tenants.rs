@@ -1,14 +1,15 @@
-use serde::Deserialize;
 use tracing::{
     info,
     debug,
     error
 };
 use std::sync::Arc;
+use serde::Deserialize;
 use serde_json::json;
 use actix_web::{
     http, 
     web, 
+    guard,
     HttpResponse, 
     Responder
 };
@@ -18,6 +19,7 @@ use crate::endpoints::{
     ApiResponse,
     default_option_response
 };
+use crate::middleware::permissions::Permission;
 
 use tenants_provider::TenantsProvider;
 use users_provider::UsersProvider;
@@ -25,7 +27,6 @@ use roles_provider::{
     Role,
     RolesProvider
 };
-
 
 
 
@@ -39,8 +40,14 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         )
         .service(
             web::resource("save")
+                .wrap(Permission::new("test"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_tenants_save))
+                .route(
+                    web::post()
+                    .guard(guard::Header("content-type", "text/json"))
+                    // .guard(Permission::new("tenant"))
+                    .to(admin_tenants_save)
+                )
         )
         .service(
             web::resource("fetch")
