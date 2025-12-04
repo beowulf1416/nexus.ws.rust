@@ -40,11 +40,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         )
         .service(
             web::resource("save")
-                .wrap(Permission::new("test"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .wrap(Permission::new("test"))
                 .route(
                     web::post()
-                    .guard(guard::Header("content-type", "text/json"))
+                    .guard(guard::Header("content-type", "application/json"))
                     // .guard(Permission::new("tenant"))
                     .to(admin_tenants_save)
                 )
