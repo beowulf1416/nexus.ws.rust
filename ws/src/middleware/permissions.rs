@@ -1,7 +1,9 @@
 // https://docs.rs/actix-web/latest/actix_web/middleware/index.html
 
 use tracing::{
-    info
+    info,
+    debug,
+    error
 };
 
 use std::{
@@ -14,17 +16,29 @@ use std::{
 };
 
 use actix_web::{
-    body::MessageBody,
+    HttpMessage,
+    HttpRequest, 
+    HttpResponse, 
+    body::{
+        MessageBody
+    }, 
     dev::{
         Service,
         ServiceRequest,
         ServiceResponse,
-        Transform, forward_ready
-    },
+        Transform, 
+        forward_ready
+    }, 
     error::Error
 };
+use actix_http::{Method};
 
 
+use crate::{classes::user, endpoints::ApiResponse};
+
+
+
+#[derive(Debug, Clone)]
 pub struct Permission {
     permission: String
 }
@@ -43,20 +57,21 @@ impl Permission {
 
 
 pub struct PermissionsMiddleware<S> {
-    service: S
+    service: S,
+    permission: Permission
 }
 
 
 
 type LocalBoxFuture<T> = Pin<Box<dyn Future<Output = T> + 'static>>;
 
-impl <S, B> Service<ServiceRequest> for PermissionsMiddleware<S>
+impl <S> Service<ServiceRequest> for PermissionsMiddleware<S>
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse, Error = Error>,
     S::Future: 'static,
-    B: 'static,
+    // B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse;
     type Error = Error;
     type Future = LocalBoxFuture<Result<Self::Response, Self::Error>>;
     
@@ -67,26 +82,76 @@ where
     forward_ready!(service);
     
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        todo!()
+        info!("call");
+
+        let user = {
+            let binding = req.extensions();
+            match binding.get::<user::User>() {
+                None => {
+                    user::User::anonymous().clone()
+                }
+                Some(u) => {
+                    u.clone()
+                }
+            }
+        };
+
+        // if the endpoint is protected by a permission
+        if self.permission.permission != ""
+            && req.method() == Method::POST
+        {
+            let (r, _p) = req.into_parts();
+            if user.is_anonymous() {
+                return Box::pin( async move {
+                    let res = HttpResponse::Unauthorized()
+                        .json(ApiResponse::error("user is not authenticated"))
+                    ;
+
+                    return Ok(ServiceResponse::new(r, res));
+                });
+            } else {
+                return Box::pin( async move {
+                    let res = HttpResponse::Forbidden()
+                        .json(ApiResponse::error("user is not allowed"))
+                    ;
+
+                    return Ok(ServiceResponse::new(r, res));
+                });
+
+            }
+        }
+
+
+        let fut = self.service.call(req);
+
+        return Box::pin(async move {
+            let res = fut.await?;
+            info!("result");
+            return Ok(res);
+        });
     }
 }
 
 
 
-impl<S, B> Transform<S, ServiceRequest> for Permission 
+impl<S> Transform<S, ServiceRequest> for Permission 
 where
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S: Service<ServiceRequest, Response = ServiceResponse, Error = Error>,
     S::Future: 'static,
-    B: 'static,
+    // B: 'static,
 {
 
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse;
     type Error = Error;
     type Transform = PermissionsMiddleware<S>;
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        todo!()
+        // todo!()
+        return ready(Ok(PermissionsMiddleware { 
+            service,
+            permission: self.clone() 
+        }));
     }
 }

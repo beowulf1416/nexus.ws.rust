@@ -1,5 +1,6 @@
 use tracing::{
-    info
+    info,
+    debug
 };
 use std::sync::Arc;
 use actix_web::{
@@ -21,7 +22,8 @@ use actix_http::{
 
 use users_provider::UsersProvider;
 
-use crate::extractors;
+// use crate::{classes::user, extractors};
+use crate::classes::user;
 
 
 pub async fn auth_middleware(
@@ -30,19 +32,41 @@ pub async fn auth_middleware(
 ) -> Result<ServiceResponse<impl MessageBody>, Error> {
     info!("auth_middleware");
 
-    if req.method() == Method::POST 
-        && let Some(header_value) = req.headers().get(header::AUTHORIZATION) 
-        && let Ok(token_value) = header_value.to_str() {
+    let u = get_user_from_request(&req).await;
+    req.extensions_mut().insert(u);
+
+    // get route configuration
+
+    let res = next.call(req).await?;
+
+    return Ok(res);
+}
+
+
+async fn get_user_from_request(
+    req: &ServiceRequest
+) -> user::User {
+    info!("get_user_from_request");
+
+    if req.method() != Method::POST {
+        return user::User::anonymous();
+    }
+
+    if let Some(header_value) = req.headers().get(header::AUTHORIZATION)
+        && let Ok(token_value) = header_value.to_str() 
+    {
         let pattern = regex::Regex::new(r"(?i)bearer").expect("incorrect regex pattern to retrieve bearer authentication");
         let token = pattern.replace(token_value, "").to_string();
         let token = token.trim();
-
+        
         let mut user_id = uuid::Uuid::nil();
+        let mut tenant_id = uuid::Uuid::nil();
 
         if let Some(tg) = req.app_data::<web::Data<Arc<token::TokenGenerator>>>() {
             let claim = tg.claim(&token);
             if !claim.is_empty() {
                 user_id = claim.user_id;
+                tenant_id = claim.tenant_id;
             }
         }
 
@@ -51,18 +75,18 @@ pub async fn auth_middleware(
             let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
             if let Ok(user) = up.fetch_by_id(&user_id).await {
-                let u = extractors::user::User::new(
+                let u = user::User::new(
                     &user_id,
-                    // user_name
-                    &"//todo"
+                    &tenant_id,
+                    &user.email
                 );
 
-                req.extensions_mut().insert(u);
+                return u;
             }
         }
     }
 
-    let res = next.call(req).await?;
-
-    return Ok(res);
+    return user::User::anonymous();
 }
+
+
