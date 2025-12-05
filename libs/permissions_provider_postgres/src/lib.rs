@@ -63,6 +63,72 @@ impl permissions_provider::PermissionsProvider for PostgresPermissionsProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn fetch_by_id(
+        &self,
+        id: &i32
+    ) -> Result<permissions_provider::Permission, &'static str> {
+        info!("fetch_by_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from permissions.permission_fetch_by_id($1);")
+                .bind(id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(r) => {
+                        let id: i32 = r.get("id");
+                        let name: String = r.get("name");
+                        let description: String = r.get("description");
+
+                        return Ok(permissions_provider::Permission { 
+                            id, 
+                            name,
+                            description
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error fetching permissions: {:?}", e);
+                        return Err("Error fetching permissions");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn fetch_by_name(
+        &self,
+        name: &str
+    ) -> Result<permissions_provider::Permission, &'static str> {
+        info!("fetch_by_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from permissions.permission_fetch_by_name($1);")
+                .bind(name)
+                .fetch_one(&pool)
+                .await {
+                    Ok(r) => {
+                        let id: i32 = r.get("id");
+                        let name: String = r.get("name");
+                        let description: String = r.get("description");
+
+                        return Ok(permissions_provider::Permission { 
+                            id, 
+                            name,
+                            description
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error fetching permissions: {:?}", e);
+                        return Err("Error fetching permissions");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
@@ -89,6 +155,16 @@ mod tests {
         if let Err(e) = pp.fetch("%").await {
             error!(e);
             assert!(false, "unable to fetch permissions");
+        }
+
+        if let Err(e) = pp.fetch_by_id(&1).await {
+            error!(e);
+            assert!(false, "unable to fetch permission by id");
+        }
+
+        if let Err(e) = pp.fetch_by_name(&"tenant.save").await {
+            error!(e);
+            assert!(false, "unable to fetch permission by name");
         }
     }
 }

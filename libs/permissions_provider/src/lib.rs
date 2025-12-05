@@ -18,4 +18,14 @@ pub trait PermissionsProvider {
         &self,
         filter: &str
     ) -> impl Future<Output = Result<Vec<Permission>, &'static str>> + Send;
+
+    fn fetch_by_id(
+        &self,
+        id: &i32
+    ) -> impl Future<Output = Result<Permission, &'static str>> + Send;
+
+    fn fetch_by_name(
+        &self,
+        name: &str
+    ) -> impl Future<Output = Result<Permission, &'static str>> + Send;
 }
