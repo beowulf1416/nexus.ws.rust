@@ -5,6 +5,7 @@
 
 mod classes;
 mod extractors;
+mod guards;
 mod middleware;
 mod endpoints;
 

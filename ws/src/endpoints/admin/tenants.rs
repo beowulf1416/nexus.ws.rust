@@ -35,64 +35,70 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
         .service(
             web::resource("fetch/id")
+                .wrap(Permission::new("tenant.fetch"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_tenants_fetch_id))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_tenants_fetch_id))
         )
         .service(
             web::resource("save")
+                .wrap(Permission::new("tenant.save"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .wrap(Permission::new("test"))
-                .route(
-                    web::post()
-                    .guard(guard::Header("content-type", "application/json"))
-                    // .guard(Permission::new("tenant"))
-                    .to(admin_tenants_save)
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_tenants_save)
                 )
         )
         .service(
             web::resource("fetch")
+                .wrap(Permission::new("tenant.list"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_tenants_fetch))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_tenants_fetch))
         )
         .service(
             web::resource("fetch/users")
+                .wrap(Permission::new("tenant.users.list"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_tenants_fetch_users))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_tenants_fetch_users))
         )
         .service(
             web::resource("set/active")
+                .wrap(Permission::new("tenant.set.active"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_tenants_set_active))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_tenants_set_active))
         )
         .service(
             web::resource("role/save")
+                .wrap(Permission::new("tenant.roles.save"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_save_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_save_post))
         )
         .service(
             web::resource("roles/fetch")
+                .wrap(Permission::new("tenant.roles.list"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_roles_fetch_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_roles_fetch_post))
         )
         .service(
             web::resource("role/assign/users")
+                .wrap(Permission::new("tenant.role.assign.users"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_assign_users_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_assign_users_post))
         )
         .service(
             web::resource("role/revoke/users")
+                .wrap(Permission::new("tenant.role.assign.users"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_revoke_users_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_users_post))
         )
         .service(
             web::resource("role/assign/permissions")
+                .wrap(Permission::new("tenant.role.assign.permission"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_role_assign_permissions_post))
         )
         .service(
             web::resource("role/revoke/permissions")
+                .wrap(Permission::new("tenant.role.assign.permission"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(admin_role_revoke_permissions_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_permissions_post))
         )
     ;
 }
@@ -464,6 +470,110 @@ async fn admin_tenants_set_active(
         Ok(_) => {
             return HttpResponse::Ok()
                 .json(ApiResponse::ok("successfully set tenants active state"));
+        }
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use tracing::error;
+    use users_provider::UsersProvider;
+    use tenants_provider::TenantsProvider;
+    use roles_provider::RolesProvider;
+
+
+    #[actix_web::test]
+    async fn test_create_test_accounts() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
+
+        let cfg = config::Config::from_env();
+        let db_provider = database_provider::DatabaseProvider::new(&cfg);
+        let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+        // tenant
+        let tenant_id = uuid::Uuid::new_v4();
+        let tenant_name = format!("tenant_{}", rand::random::<u16>());
+        let tenant_description = "test_tenant";
+
+        let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+
+        if let Err(e) = tp.tenant_save(&tenant_id, &tenant_name, &tenant_description).await {
+            error!(e);
+            assert!(false, "unable to save tenant record");
+        }
+
+        if let Err(e) = tp.tenant_set_active(&tenant_id, &true).await {
+            error!(e);
+            assert!(false, "unable to set tenant active state");
+        }
+
+        // user
+        let user_id = uuid::Uuid::new_v4();
+        let user_email = format!("test_{}@test.com", rand::random::<u16>());
+
+        let user_first_name = "test_first";
+        let user_middle_name = "test_middle";
+        let user_last_name = "test_last";
+        let user_prefix = "test_prefix";
+        let user_suffix = "test_suffix";
+
+        let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+        if let Err(e) = up.save(&user_id, &user_first_name, &user_middle_name, &user_last_name, &user_prefix, &user_suffix).await {
+            error!(e);
+            assert!(false, "unable to save user");
+        }
+
+        if let Err(e) = up.set_active(&user_id, &true).await {
+            error!(e);
+            assert!(false, "unable to set user active state");
+        }
+
+        if let Err(e) = up.add_email(&user_id, &user_email).await {
+            error!(e);
+            assert!(false, "unable to add user email");
+        }
+
+        // assign user to tenant
+        if let Err(e) = up.tenant_assign(
+            &vec![user_id], 
+            &vec![tenant_id]
+        ).await {
+            error!(e);
+            assert!(false, "unable to fetch assign users to tenants");
+        }
+
+
+        // roles
+        let role_id = uuid::Uuid::new_v4();
+        let role_name = format!("role_{}", rand::random::<u16>());
+        let role_description = "roles_provider_postgres_test";
+
+        let role = roles_provider::Role {
+            role_id,
+            name: role_name,
+            description: String::from(role_description),
+            active: true,
+            created: chrono::Utc::now()
+        };
+
+        let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+        if let Err(e) = rp.save(&tenant_id, &role).await {
+            error!("unable to create role: {:?}", e);
+            assert!(false, "unable to create role");
+        }
+        
+        if let Err(e) = rp.assign_permissions(
+            &vec!(role_id),
+            &vec!(1)
+        ).await {
+            error!("unable to assign permission to role: {}", e);
+            assert!(false, "unable to assign permission to role");
         }
     }
 }
