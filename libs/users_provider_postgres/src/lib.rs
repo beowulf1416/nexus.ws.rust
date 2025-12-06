@@ -103,7 +103,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         user_ids: &Vec<uuid::Uuid>,
         active: &bool
     ) -> Result<(), &'static str> {
-        info!("set_active");
+        info!("set_active_multiple");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call users.users_set_active_multiple($1,$2);")
@@ -159,7 +159,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         &self,
         user_id: &uuid::Uuid
     ) -> Result<users_provider::User, &'static str> {
-        info!("save");
+        info!("fetch_by_id");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from users.users_fetch_by_id($1);")
@@ -208,7 +208,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         &self,
         email: &str
     ) -> Result<users_provider::User, &'static str> {
-        info!("save");
+        info!("fetch_by_email");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from users.users_fetch_by_email($1);")
@@ -309,7 +309,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         tenant_id: &uuid::Uuid,
         filter: &str
     ) -> Result<std::vec::Vec<users_provider::User>, &'static str> {
-        info!("users_fetch");
+        info!("tenant_users_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("select * from tenants.tenant_users_fetch($1, $2);")
@@ -361,7 +361,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid
     ) -> Result<(), &'static str> {
-        info!("user_save");
+        info!("tenant_user_save");
         
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.tenant_user_save($1,$2);")
