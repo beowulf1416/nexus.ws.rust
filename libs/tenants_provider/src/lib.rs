@@ -55,6 +55,10 @@ impl Tenant {
     pub fn name(&self) -> String {
         return self.name.clone();
     }
+
+    pub fn description(&self) -> String {
+        return self.description.clone();
+    }
 }
 
 
@@ -99,5 +103,10 @@ pub trait TenantsProvider {
     fn tenants_fetch(
         &self,
         filter: &str
+    ) -> impl Future<Output = Result<Vec<Tenant>, &'static str>> + Send;
+
+    fn tenant_user_tenants_fetch(
+        &self,
+        user_id: &uuid::Uuid
     ) -> impl Future<Output = Result<Vec<Tenant>, &'static str>> + Send;
 }

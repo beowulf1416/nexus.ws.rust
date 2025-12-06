@@ -196,6 +196,46 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn tenant_user_tenants_fetch(
+        &self,
+        user_id: &uuid::Uuid
+    ) -> Result<Vec<tenants_provider::Tenant>, &'static str> {
+        info!("tenant_user_fetch_tenants");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.tenant_user_fetch_tenants($1);")
+                .bind(user_id)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        let tenants: Vec<tenants_provider::Tenant> = rows.iter().map(|r| {
+                            let tenant_id: uuid::Uuid = r.get("tenant_id");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let name: String = r.get("name");
+                            let description: String = r.get("description");
+
+                            return tenants_provider::Tenant::new(
+                                &tenant_id,
+                                active,
+                                &created,
+                                name.as_str(),
+                                description.as_str()
+                            );
+                        }).collect();
+                        return Ok(tenants);
+                    }
+                    Err(e) => {
+                        error!("Error fetching tenant records: {:?}", e);
+                        return Err("Error fetching tenant records");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 
