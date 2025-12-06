@@ -1,5 +1,6 @@
 use tracing::{
     info,
+    error,
     debug
 };
 use std::sync::Arc;
@@ -18,12 +19,17 @@ use actix_http::{
     Method,
     header
 };
+use futures::try_join;
 
 
 use users_provider::UsersProvider;
+use tenants_provider::TenantsProvider;
 
 // use crate::{classes::user, extractors};
-use crate::classes::user;
+use crate::classes::{
+    user,
+    tenant
+};
 
 
 pub async fn auth_middleware(
@@ -73,15 +79,45 @@ async fn get_user_from_request(
         if !user_id.is_nil() && let Some(dp_ref) = req.app_data::<web::Data<Arc<database_provider::DatabaseProvider>>>() {
             let dp = dp_ref.get_ref();
             let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+            let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-            if let Ok(user) = up.fetch_by_id(&user_id).await {
-                let u = user::User::new(
-                    &user_id,
-                    &tenant_id,
-                    &user.email
-                );
+            let f1 = up.fetch_by_id(&user_id);
+            let f2 = tp.tenant_user_tenants_fetch(&user_id);
+            let f3 = tp.tenants_fetch_by_id(&tenant_id);
 
-                return u;
+            match try_join!(f1, f2, f3) {
+                Err(e) => {
+                    error!("unable to fetch user or tenant data for user: {:?}", e);
+                }
+                Ok((user, tenants, tenant)) => {
+                    let ts: Vec<tenant::Tenant> = tenants.iter().map(|t| {
+                        let tenant_id = t.tenant_id();
+                        let name = t.name();
+                        let description = t.description();
+
+                        return tenant::Tenant::new(
+                            &tenant_id,
+                            &name,
+                            &description
+                        );
+                    }).collect();
+
+                    let t = tenant::Tenant::new(
+                        &tenant.tenant_id(),
+                        &tenant.name(),
+                        &tenant.description()
+                    );
+
+                    let u = user::User::new(
+                        &user_id,
+                        &t,
+                        &user.email,
+                        &user.email,
+                        &ts
+                    );
+
+                    return u;
+                }
             }
         }
     }

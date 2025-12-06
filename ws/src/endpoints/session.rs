@@ -13,6 +13,7 @@ use serde_json::json;
 
 use http::header::AUTHORIZATION;
 use actix_web::{
+    guard,
     dev::ConnectionInfo, 
     http, 
     web, 
@@ -21,13 +22,20 @@ use actix_web::{
 };
 
 
-use crate::{endpoints::{
-    ApiResponse,
-    default_option_response
-}, extractors};
+use crate::{
+    classes::{
+        user,
+        tenant
+    },
+    endpoints::{
+        ApiResponse,
+        default_option_response
+    }
+};
 
 use auth_provider::AuthProvider;
 use users_provider::UsersProvider;
+use tenants_provider::TenantsProvider;
 
 
 
@@ -38,12 +46,17 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         .service(
             web::resource("sign-in")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(user_session_signin_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(user_session_signin_post))
         )
         .service(
             web::resource("user")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(user_session_user_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(user_session_user_post))
+        )
+        .service(
+            web::resource("tenant/set")
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(user_session_tenant_set_post))
         )
     ;
 }
@@ -103,6 +116,7 @@ async fn user_session_signin_post(
             let claim = token::Claim::new(
                 &user.user_id,
                 &uuid::Uuid::nil(),
+                &params.email,
                 &params.email
             );
 
@@ -135,26 +149,45 @@ async fn user_session_signin_post(
 #[derive(Debug, Serialize)]
 struct UserSessionResponseData {
     name: String,
-    tenant: String,
-    permissions: Vec<u16>
+    tenant: tenant::Tenant,
+    permissions: Vec<u16>,
+    tenants: Vec<tenant::Tenant>
 }
 
 
 async fn user_session_user_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    user: extractors::user::User
+    // user: extractors::user::User
+    user: user::User
 ) -> impl Responder {
     info!("user_session_user_post");
 
     debug!("{:?}", user);
 
     let user_id = user.user_id();
+    let mut tenant = tenant::Tenant::default();
     let mut email = String::from("");
 
-    let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
-    if let Ok(auth_details) = ap.fetch_user_by_id(&user.user_id()).await {
-        email = auth_details.email;
-    }
+    let tenants = user.tenants();
+
+    // let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
+    // if let Ok(auth_details) = ap.fetch_user_by_id(&user.user_id()).await {
+    //     email = auth_details.email;
+    // }
+
+    let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+
+    // let f1 = ap.fetch_user_by_id(&user.user_id());
+    // let f2 = tp.tenants_fetch_by_id(&user.tenant_id());
+
+    // if let Ok(t) = tp.tenants_fetch_by_id(&user.tenant().tenant_id()).await {
+    //     tenant = tenant::Tenant::new(
+    //         &t.tenant_id(),
+    //         &t.name(),
+    //         &t.description()
+    //     );
+    // }
+
 
     return HttpResponse::Ok()
         .json(ApiResponse::new(
@@ -162,10 +195,61 @@ async fn user_session_user_post(
             "success",
             Some(json!({
                 "user": UserSessionResponseData {
-                    name: email,
-                    tenant: String::from("todo"),
-                    permissions: vec!()
+                    name: user.name(),
+                    tenant: tenant,
+                    permissions: vec!(),
+                    tenants: tenants
                 }
             }))
         ));
+}
+
+
+
+#[derive(Debug, Deserialize)]
+struct UserSessionTenantSwitchPost {
+    tenant_id: uuid::Uuid
+}
+
+async fn user_session_tenant_set_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    tg: web::Data<Arc<token::TokenGenerator>>,
+    user: user::User,
+    params: web::Json<UserSessionTenantSwitchPost>
+) -> impl Responder {
+    info!("user_session_tenant_set_post");
+
+    let mut rb = HttpResponse::Ok();
+
+    if user.is_authenticated() {
+        let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+
+        if let Ok(new_tenant) = tp.tenants_fetch_by_id(&params.tenant_id).await {
+            let claim = token::Claim::new(
+                &user.user_id(),
+                &new_tenant.tenant_id(),
+                &user.name(),
+                &user.email()
+            );
+
+            match tg.generate(
+                &claim
+            ) {
+                Err(e) => {
+                    error!("unable to generate token: {}", e);
+                }
+                Ok(token) => {
+                    rb.append_header((http::header::AUTHORIZATION, format!("Bearer {}", token)));
+                }
+            }
+        }
+    }
+
+    let response = rb.json(ApiResponse::new(
+        true,
+        "switched to tenant",
+        None
+    ));
+
+    return response;
 }
