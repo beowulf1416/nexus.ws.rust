@@ -188,6 +188,14 @@ async fn user_session_user_post(
     //     );
     // }
 
+    if let Ok(t) = tp.tenants_fetch_by_id(&user.tenant().tenant_id()).await {
+        tenant = tenant::Tenant::new(
+            &t.tenant_id(),
+            &t.name(),
+            &t.description()
+        );
+    }
+
 
     return HttpResponse::Ok()
         .json(ApiResponse::new(
