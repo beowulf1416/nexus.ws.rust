@@ -26,7 +26,8 @@ use jwt::{
 pub struct Claim {
     pub user_id: uuid::Uuid,
     pub tenant_id: uuid::Uuid,
-    pub user_name: String
+    pub user_name: String,
+    pub email: String
 }
 
 
@@ -34,12 +35,14 @@ impl Claim {
     pub fn new(
         user_id: &uuid::Uuid,
         tenant_id: &uuid::Uuid,
-        user_name: &str
+        user_name: &str,
+        email: &str
     ) -> Self {
         return Self {
             user_id: *user_id,
             tenant_id: tenant_id.clone(),
-            user_name: String::from(user_name)
+            user_name: String::from(user_name),
+            email: String::from(email)
         };
     }
 
@@ -47,7 +50,8 @@ impl Claim {
         return Self {
             user_id: uuid::Uuid::nil(),
             tenant_id: uuid::Uuid::nil(),
-            user_name: String::from("")
+            user_name: String::from(""),
+            email: String::from("")
         };
     }
 
@@ -92,6 +96,7 @@ impl TokenGenerator {
         claims.insert("sid", claim.user_id.to_string());
         claims.insert("client_id", claim.tenant_id.to_string());
         claims.insert("preferred_username", claim.user_name.to_string());
+        claims.insert("email", claim.email.to_string());
 
         return match claims.sign_with_key(&key) {
             Err(e) => {
@@ -165,10 +170,16 @@ impl TokenGenerator {
                     Some(user_name) => user_name.to_string()
                 };
 
+                let email = match claims.get("email") {
+                    None => String::from(""),
+                    Some(email) => email.to_string()
+                };
+
                 return Claim::new(
                     &user_id,
                     &tenant_id,
-                    user_name.as_str()
+                    user_name.as_str(),
+                    email.as_str()
                 );
             }
         }
