@@ -63,6 +63,34 @@ impl Tenant {
 
 
 
+#[derive(Debug, Serialize)]
+pub struct Permission {
+    id: i32,
+    name: String
+}
+
+impl Permission {
+
+    pub fn new(
+        permission_id: &i32,
+        name: &str
+    ) -> Self {
+        return Self {
+            id: permission_id.clone(),
+            name: String::from(name)
+        };
+    }
+
+    pub fn id(&self) -> i32 {
+        return self.id.clone();
+    }
+
+    pub fn name(&self) -> String {
+        return self.name.clone();
+    }
+}
+
+
 pub trait TenantsProvider {
 
     // fn save(
@@ -109,4 +137,10 @@ pub trait TenantsProvider {
         &self,
         user_id: &uuid::Uuid
     ) -> impl Future<Output = Result<Vec<Tenant>, &'static str>> + Send;
+
+    fn tenant_user_permissions_fetch(
+        &self,
+        user_id: &uuid::Uuid,
+        tenant_id: &uuid::Uuid
+    ) -> impl Future<Output = Result<Vec<Permission>, &'static str>> + Send;
 }

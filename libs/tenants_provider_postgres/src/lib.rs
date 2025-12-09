@@ -236,6 +236,43 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn tenant_user_permissions_fetch(
+        &self,
+        user_id: &uuid::Uuid,
+        tenant_id: &uuid::Uuid
+    ) -> Result<Vec<tenants_provider::Permission>, &'static str> {
+        info!("tenant_user_permissions_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.tenant_user_fetch_permissions($1, $2);")
+                .bind(user_id)
+                .bind(tenant_id)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        let permissions: Vec<tenants_provider::Permission> = rows.iter().map(|r| {
+                            let permission_id: i32 = r.get("permission_id");
+                            let name: String = r.get("name");
+
+                            return tenants_provider::Permission::new(
+                                &permission_id,
+                                name.as_str()
+                            );
+                        }).collect();
+                        return Ok(permissions);
+                    }
+                    Err(e) => {
+                        error!("Error fetching permissions: {:?}", e);
+                        return Err("Error fetching permissions");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    
+    }
 }
 
 
