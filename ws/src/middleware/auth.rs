@@ -27,6 +27,7 @@ use tenants_provider::TenantsProvider;
 
 // use crate::{classes::user, extractors};
 use crate::classes::{
+    permission,
     user,
     tenant
 };
@@ -84,12 +85,13 @@ async fn get_user_from_request(
             let f1 = up.fetch_by_id(&user_id);
             let f2 = tp.tenant_user_tenants_fetch(&user_id);
             let f3 = tp.tenants_fetch_by_id(&tenant_id);
-
-            match try_join!(f1, f2, f3) {
+            let f4 = tp.tenant_user_permissions_fetch(&user_id, &tenant_id);
+            
+            match try_join!(f1, f2, f3, f4) {
                 Err(e) => {
                     error!("unable to fetch user or tenant data for user: {:?}", e);
                 }
-                Ok((user, tenants, tenant)) => {
+                Ok((user, tenants, tenant, permissions)) => {
                     let ts: Vec<tenant::Tenant> = tenants.iter().map(|t| {
                         let tenant_id = t.tenant_id();
                         let name = t.name();
@@ -99,6 +101,16 @@ async fn get_user_from_request(
                             &tenant_id,
                             &name,
                             &description
+                        );
+                    }).collect();
+
+                    let ps: Vec<permission::Permission> = permissions.iter().map(|p| {
+                        let permission = p.id();
+                        let name = p.name();
+
+                        return permission::Permission::new(
+                            &permission,
+                            &name
                         );
                     }).collect();
 
@@ -113,15 +125,18 @@ async fn get_user_from_request(
                         &t,
                         &user.email,
                         &user.email,
-                        &ts
+                        &ts,
+                        &ps
                     );
 
+                    debug!("returning authenticated user");
                     return u;
                 }
             }
         }
     }
 
+    debug!("returning anonymous");
     return user::User::anonymous();
 }
 

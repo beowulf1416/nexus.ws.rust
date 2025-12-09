@@ -96,28 +96,41 @@ where
             }
         };
 
+        let requested_permission = self.permission.permission.clone();
+
+
         // if the endpoint is protected by a permission
-        if self.permission.permission != ""
+        if !requested_permission.is_empty()
             && req.method() == Method::POST
         {
-            let (r, _p) = req.into_parts();
+            // let (r, _p) = req.into_parts();
             if user.is_anonymous() {
+                debug!("user is anonymous");
                 return Box::pin( async move {
                     let res = HttpResponse::Unauthorized()
                         .json(ApiResponse::error("user is not authenticated"))
                     ;
 
-                    return Ok(ServiceResponse::new(r, res));
+                    // return Ok(ServiceResponse::new(req, res));
+                    return Ok(req.into_response(res));
                 });
             } else {
-                return Box::pin( async move {
-                    let res = HttpResponse::Forbidden()
-                        .json(ApiResponse::error("user is not allowed"))
-                    ;
-
-                    return Ok(ServiceResponse::new(r, res));
+                // check if user has permission
+                let allowed = user.permissions().iter().any(|p| {
+                    return p.name() == requested_permission;
                 });
 
+                if !allowed {
+                    debug!("user is missing permission: {}", requested_permission);
+                    return Box::pin( async move {
+                        let res = HttpResponse::Forbidden()
+                            .json(ApiResponse::error("user is not allowed"))
+                        ;
+
+                        // return Ok(ServiceResponse::new(r, res));
+                        return Ok(req.into_response(res));
+                    });
+                }
             }
         }
 

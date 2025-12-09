@@ -18,6 +18,7 @@ use actix_http::{
 };
 
 use crate::classes::{
+    permission,
     user,
     tenant
 };
@@ -30,7 +31,8 @@ pub struct User {
     tenant: tenant::Tenant,
     name: String,
     email: String,
-    tenants: Vec<tenant::Tenant>
+    tenants: Vec<tenant::Tenant>,
+    permissions: Vec<permission::Permission>
 }
 
 
@@ -49,14 +51,16 @@ impl User {
         tenant: &tenant::Tenant,
         name: &str,
         email: &str,
-        tenants: &Vec<tenant::Tenant>
+        tenants: &Vec<tenant::Tenant>,
+        permissions: &Vec<permission::Permission>
     ) -> Self {
         return Self {
             user_id: user_id.clone(),
             tenant: tenant.clone(),
             name: String::from(name),
             email: String::from(email),
-            tenants: tenants.clone()
+            tenants: tenants.clone(),
+            permissions: permissions.clone()
         };
     }
 
@@ -66,7 +70,8 @@ impl User {
             tenant: tenant::Tenant::default(),
             name: String::from(""),
             email: String::from(""),
-            tenants: vec![]
+            tenants: vec![],
+            permissions: vec![]
         };
     }
 
@@ -96,6 +101,10 @@ impl User {
 
     pub fn tenants(&self) -> Vec<tenant::Tenant> {
         return self.tenants.clone();
+    }
+
+    pub fn permissions(&self) -> Vec<permission::Permission> {
+        return self.permissions.clone();
     }
 }
 
