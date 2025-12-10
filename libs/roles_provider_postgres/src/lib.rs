@@ -58,6 +58,34 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
     }
 
 
+    async fn set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_set_active($1,$2);")
+                .bind(role_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting active state of role: {:?}", e);
+                        return Err("Error setting active state of role");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn fetch(
         &self,
         tenant_id: &uuid::Uuid,
@@ -155,6 +183,66 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         }
     }
 
+
+    async fn role_user_set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("revoke_users");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_user_set_active($1, $2, $3);")
+                .bind(role_id)
+                .bind(user_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error setting active state of role: {:?}", e);
+                        return Err("Error setting active state of role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+    async fn tenant_user_set_active(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("revoke_users");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.tenant_user_set_active($1, $2, $3);")
+                .bind(tenant_id)
+                .bind(user_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error setting active state of tenant users: {:?}", e);
+                        return Err("Error setting active state of tenant users");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     
     async fn assign_permissions(
         &self,
@@ -200,6 +288,35 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                     Err(e) => {
                         error!("Error revoking permissions from role: {:?}", e);
                         return Err("Error revoking permissions from role");
+                    }
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn role_permission_set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        permission_id: &i32,
+        active: bool
+    ) -> Result<(), &'static str> {
+        info!("revoke_permissions");    
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.role_permission_set_active($1, $2, $3);")
+                .bind(role_id)
+                .bind(permission_id)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Err(e) => {
+                        error!("Error setting active state of role permission: {:?}", e);
+                        return Err("Error setting active state of role permission");
                     }
                     Ok(_) => {
                         return Ok(());
@@ -261,6 +378,11 @@ mod tests {
             assert!(false, "unable to create role");
         }
 
+        if let Err(e) = rp.set_active(&role_id, &true).await {
+            error!("unable to set active state of role: {:?}", e);
+            assert!(false, "unable to set active state of role");
+        }
+
         if let Err(e) = rp.fetch(&tenant_id, "%").await {
             error!("unable to fetch roles: {}", e);
             assert!(false, "unable to fetch roles");
@@ -277,6 +399,15 @@ mod tests {
         if let Err(e) = rp.revoke_permissions(
             &vec!(role_id),
             &vec!(1)
+        ).await {
+            error!("unable to revoke permission from role: {}", e);
+            assert!(false, "unable to revoke permission from role");
+        }
+
+        if let Err(e) = rp.role_permission_set_active(
+            &role_id,
+            &1,
+            true
         ).await {
             error!("unable to revoke permission from role: {}", e);
             assert!(false, "unable to revoke permission from role");

@@ -20,7 +20,13 @@ pub trait RolesProvider {
         &self,
         tenant_id: &uuid::Uuid,
         role: &Role
-    ) -> impl Future<Output = Result<(), &'static str>> + Send; 
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
     fn fetch(
         &self,
@@ -40,6 +46,20 @@ pub trait RolesProvider {
         user_ids: &Vec<uuid::Uuid>
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
+    fn role_user_set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn tenant_user_set_active(
+        &self,
+        tenant_id: &uuid::Uuid,
+        user_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
     fn assign_permissions(
         &self,
         role_ids: &Vec<uuid::Uuid>,
@@ -50,5 +70,12 @@ pub trait RolesProvider {
         &self,
         role_ids: &Vec<uuid::Uuid>,
         permission_ids: &Vec<i32>
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn role_permission_set_active(
+        &self,
+        role_id: &uuid::Uuid,
+        permission_id: &i32,
+        active: bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
