@@ -96,16 +96,14 @@ where
             }
         };
 
-        debug!("user: {:?}", user);
+        // debug!("user: {:?}", user);
 
         let requested_permission = self.permission.permission.clone();
-
 
         // if the endpoint is protected by a permission
         if !requested_permission.is_empty()
             && req.method() == Method::POST
         {
-            // let (r, _p) = req.into_parts();
             if user.is_anonymous() {
                 debug!("user is anonymous");
                 return Box::pin( async move {
@@ -113,7 +111,6 @@ where
                         .json(ApiResponse::error("user is not authenticated"))
                     ;
 
-                    // return Ok(ServiceResponse::new(req, res));
                     return Ok(req.into_response(res));
                 });
             } else {
@@ -129,7 +126,6 @@ where
                             .json(ApiResponse::error("user is not allowed"))
                         ;
 
-                        // return Ok(ServiceResponse::new(r, res));
                         return Ok(req.into_response(res));
                     });
                 }
@@ -163,7 +159,6 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        // todo!()
         return ready(Ok(PermissionsMiddleware { 
             service,
             permission: self.clone() 
