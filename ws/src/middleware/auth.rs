@@ -129,7 +129,7 @@ async fn get_user_from_request(
                         &ps
                     );
 
-                    debug!("returning authenticated user");
+                    debug!("returning authenticated user: {:?}", u);
                     return u;
                 }
             }

@@ -96,6 +96,8 @@ where
             }
         };
 
+        debug!("user: {:?}", user);
+
         let requested_permission = self.permission.permission.clone();
 
 
