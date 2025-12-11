@@ -2,6 +2,7 @@ pub mod session;
 pub mod permissions;
 pub mod user;
 pub mod admin;
+pub mod inventory;
 
 
 use tracing::{

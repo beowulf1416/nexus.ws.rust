@@ -19,5 +19,7 @@ members = [
     "libs/users_provider_postgres",
     "libs/user_registration", 
     "libs/user_registration_postgres",
+    "libs/inv_provider",
+    "libs/inv_provider_postgres",
     "ws"
 ]
