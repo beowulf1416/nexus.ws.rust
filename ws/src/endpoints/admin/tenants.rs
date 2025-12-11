@@ -100,6 +100,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_permissions_post))
         )
+        // .service(
+        //     web::resource("users/fetch")
+        //         .wrap(Permission::new("tenant.users.list"))
+        //         .route(web::method(http::Method::OPTIONS).to(default_option_response))
+        //         .route(web::post().guard(guard::Header("content-type", "application/json")).to(tenant_users_fetch_post))
+        // )
     ;
 }
 
@@ -228,7 +234,7 @@ async fn admin_tenants_fetch_users(
 
     match up.tenant_users_fetch(
         &params.tenant_id,
-        &params.filter
+        format!("%{}%", params.filter).as_str()
     ).await {
         Err(e) => {
             error!("unable to fetch tenant users: {}", e);
@@ -475,6 +481,46 @@ async fn admin_tenants_set_active(
 }
 
 
+
+/*
+#[derive(Debug, Deserialize)]
+struct TenantUsersFetchPost {
+    tenant_id: uuid::Uuid,
+    filter: String
+}
+
+
+async fn tenant_users_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<TenantUsersFetchPost>
+) -> impl Responder {
+    info!("tenant_users_fetch_post");
+    debug!("params: {:?}", params);
+
+    let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
+
+    match up.tenant_users_fetch(
+        &params.tenant_id,
+        format!("%{}%", params.filter).as_str()
+    ).await {
+        Err(e) => {
+            error!("unable to fetch tenant users: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch tenant users"));
+        }
+        Ok(users) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully fetch tenant users",
+                    Some(json!({
+                        "users": users
+                    }))
+                ));
+        }
+    }
+}
+*/
 
 #[cfg(test)]
 mod tests {
