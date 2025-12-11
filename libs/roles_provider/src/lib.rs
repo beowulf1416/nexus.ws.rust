@@ -75,7 +75,7 @@ pub trait RolesProvider {
     fn role_permission_set_active(
         &self,
         role_id: &uuid::Uuid,
-        permission_id: &i32,
+        permission_ids: &Vec<i32>,
         active: bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

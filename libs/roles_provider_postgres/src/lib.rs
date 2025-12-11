@@ -302,7 +302,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
     async fn role_permission_set_active(
         &self,
         role_id: &uuid::Uuid,
-        permission_id: &i32,
+        permission_ids: &Vec<i32>,
         active: bool
     ) -> Result<(), &'static str> {
         info!("revoke_permissions");    
@@ -310,7 +310,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.role_permission_set_active($1, $2, $3);")
                 .bind(role_id)
-                .bind(permission_id)
+                .bind(permission_ids)
                 .bind(active)
                 .execute(&pool)
                 .await {
@@ -406,7 +406,7 @@ mod tests {
 
         if let Err(e) = rp.role_permission_set_active(
             &role_id,
-            &1,
+            &vec!(1,2),
             true
         ).await {
             error!("unable to revoke permission from role: {}", e);

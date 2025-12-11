@@ -318,7 +318,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                 .fetch_all(&pool)
                 .await {
                     Ok(rows) => {
-                        let tenants: Vec<users_provider::User> = rows.iter().map(|r| {
+                        let users: Vec<users_provider::User> = rows.iter().map(|r| {
                             let user_id: uuid::Uuid = r.get("user_id");
                             let active: bool = r.get("active");
                             let created: chrono::DateTime<chrono::Utc> = r.get("created");
@@ -341,7 +341,7 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
                                 &email
                             );
                         }).collect();
-                        return Ok(tenants);
+                        return Ok(users);
                     }
                     Err(e) => {
                         error!("Error fetching tenant users records: {:?}", e);
