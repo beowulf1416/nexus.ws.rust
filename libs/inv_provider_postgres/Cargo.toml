@@ -12,7 +12,8 @@ chrono = "*"
 
 # projects
 database_provider = { path = "../database_provider" }
-
+config = { path = "../config" }
+inv_provider = { path = "../inv_provider" }
 
 
 [dev-dependencies]
@@ -20,4 +21,3 @@ tracing-subscriber = "*"
 rand = "*"
 actix-web = "*"
 
-config = { path = "../config" }

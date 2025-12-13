@@ -58,5 +58,8 @@ auth_provider_postgres = { path = "../libs/auth_provider_postgres" }
 #admin_tenants = { path = "../libs/admin_tenants" }
 #admin_tenants_postgres = { path = "../libs/admin_tenants_postgres" }
 
+inv_provider = { path = "../libs/inv_provider" }
+inv_provider_postgres = { path = "../libs/inv_provider_postgres" }
+
 
 
