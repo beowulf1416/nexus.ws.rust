@@ -40,9 +40,11 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                 .bind(tenant_id)
                 .fetch_one(&pool)
                 .await {
+                    Err(e) => {
+                        error!("Error fetching tenant record: {:?}", e);
+                        return Err("Error fetching tenant record");
+                    }
                     Ok(r) => {
-                        debug!("//todo: {:?}", r);
-
                         let tenant_id: uuid::Uuid = r.get("tenant_id");
                         let active: bool = r.get("active");
                         let created: chrono::DateTime<chrono::Utc> = r.get("created");
@@ -59,9 +61,45 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                             &description
                         ));
                     }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
+    async fn tenant_fetch_by_name(
+        &self,
+        name: &str
+    ) -> Result<tenants_provider::Tenant, &'static str> {
+        info!("tenant_fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.tenant_fetch_by_name($1);")
+                .bind(name)
+                .fetch_one(&pool)
+                .await {
                     Err(e) => {
-                        error!("Error fetching tenant record: {:?}", e);
-                        return Err("Error fetching tenant record");
+                        error!("Error fetching tenant record by name: {:?}", e);
+                        return Err("Error fetching tenant record by name");
+                    }
+                    Ok(r) => {
+                        let tenant_id: uuid::Uuid = r.get("tenant_id");
+                        let active: bool = r.get("active");
+                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                        let name: String = r.get("name");
+                        let description: String = r.get("description");
+
+
+
+                        return Ok(tenants_provider::Tenant::new(
+                            &tenant_id,
+                            active,
+                            &created,
+                            &name,
+                            &description
+                        ));
                     }
                 }
         } else {
@@ -302,6 +340,11 @@ mod tests {
         if let Err(e) = tp.tenant_save(&tenant_id, &name, &description).await {
             error!(e);
             assert!(false, "unable to save tenant record");
+        }
+
+        if let Err(e) = tp.tenant_fetch_by_name(&name).await {
+            error!(e);
+            assert!(false, "unable to fetch tenant record by name");
         }
 
         if let Err(e) = tp.tenant_set_active(&tenant_id, &true).await {

@@ -109,6 +109,11 @@ pub trait TenantsProvider {
         tenant_id: &uuid::Uuid
     ) -> impl Future<Output = Result<Tenant, &'static str>> + Send;
 
+    fn tenant_fetch_by_name(
+        &self,
+        name: &str
+    ) -> impl Future<Output = Result<Tenant, &'static str>> + Send;
+
     fn tenant_save(
         &self,
         tenant_id: &uuid::Uuid,
