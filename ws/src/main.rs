@@ -74,6 +74,8 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/permissions").configure(crate::endpoints::permissions::config))
             .service(web::scope("/tenants").configure(crate::endpoints::admin::tenants::config))
             .service(web::scope("/admin/users").configure(crate::endpoints::admin::users::config))
+
+            .service(web::scope("/inv/items").configure(crate::endpoints::inventory::item::config))
         ;
 
         return app;
