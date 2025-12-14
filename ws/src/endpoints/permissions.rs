@@ -22,10 +22,10 @@ use actix_web::{
 
 
 
-use crate::{endpoints::{
+use crate::endpoints::{
     ApiResponse,
     default_option_response
-}, extractors};
+};
 
 use permissions_provider::PermissionsProvider;
 
