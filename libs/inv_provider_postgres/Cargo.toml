@@ -21,3 +21,5 @@ tracing-subscriber = "*"
 rand = "*"
 actix-web = "*"
 
+tenants_provider = { path = "../tenants_provider" }
+tenants_provider_postgres = { path = "../tenants_provider_postgres" }

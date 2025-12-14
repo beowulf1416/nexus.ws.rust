@@ -179,6 +179,9 @@ impl inv_provider::InventoryProvider for PostgresInventoryProvider {
 mod tests {
     use super::*;
 
+    use inv_provider::InventoryProvider;
+    use tenants_provider::TenantsProvider;
+
     #[actix_web::test]
     async fn test_inventory() {
         if let Err(e) = tracing_subscriber::fmt::try_init() {
@@ -189,11 +192,30 @@ mod tests {
         let db_provider = database_provider::DatabaseProvider::new(&cfg);
         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
-        let inv_provider = PostgresInventoryProvider::new(&dp);
+        let provider = PostgresInventoryProvider::new(&dp);
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
         let tenant = tp.tenant_fetch_by_name("default").await.unwrap();
+        let tenant_id = tenant.tenant_id();
 
+        let new_item = inv_provider::Item {
+            id: uuid::Uuid::new_v4(),
+            active: true,
+            created: chrono::Utc::now(),
+            name: "Test Item".to_string(),
+            description: "This is a test item".to_string(),
+            sku: "TESTSKU".to_string(),
+            upc: "123456789012".to_string()
+        };
         
+        if let Err(e) = provider.item_save(&tenant_id, &new_item).await {
+            error!("unable to create inventory item: {:?}", e);
+            assert!(false, "unable to create inventory item");
+        }
+
+        if let Err(e) = provider.item_set_active(&new_item.id, &true).await {
+            error!("unable to create inventory item: {:?}", e);
+            assert!(false, "unable to create inventory item");
+        }
     }
 }
