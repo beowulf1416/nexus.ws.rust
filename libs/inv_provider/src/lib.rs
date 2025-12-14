@@ -9,6 +9,19 @@ pub struct Item {
 }
 
 
+pub struct Warehouse {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub address: String
+}
+
+pub struct Location {
+    pub id: uuid::Uuid,
+    pub warehouse_id: uuid::Uuid,
+    pub name: String,
+    pub description: String
+}
+
 
 pub trait InventoryProvider {
 
@@ -35,3 +48,42 @@ pub trait InventoryProvider {
         item_id: &uuid::Uuid
     ) -> impl Future<Output = Result<Item, &'static str>> + Send;
 }
+
+
+
+pub trait WarehouseProvider {
+
+    fn warehouse_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        warehouse: &Warehouse
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+
+    fn warehouse_set_active(
+        &self,
+        warehouse_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+}
+
+
+pub trait LocationProvider {
+
+    fn location_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        location: &Location
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn location_set_active(
+        &self,
+        location_id: &uuid::Uuid,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+}
+
+
+pub trait ItemProvider {}
+
+

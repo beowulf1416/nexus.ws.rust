@@ -1,5 +1,12 @@
 #![allow(clippy::needless_return)]
 
+
+pub mod warehouse;
+pub mod location;
+pub mod item;
+
+
+
 use tracing::{
     info,
     error,
