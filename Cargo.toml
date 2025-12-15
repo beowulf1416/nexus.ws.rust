@@ -21,5 +21,7 @@ members = [
     "libs/user_registration_postgres",
     "libs/inv_provider",
     "libs/inv_provider_postgres",
+    "libs/file_store",
+    "libs/file_store_local",
     "ws"
 ]
