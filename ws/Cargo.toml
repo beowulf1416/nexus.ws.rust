@@ -19,8 +19,10 @@ uuid = { version = "*", features = ["serde"] }
 openssl = "*"
 rand = "*"
 
+tokio = "*"
 actix-web = { version="4", features=["openssl"] }
 actix-http = "*"
+actix-multipart = "*"
 
 
 futures = "*"
