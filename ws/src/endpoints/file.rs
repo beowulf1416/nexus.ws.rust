@@ -60,29 +60,43 @@ async fn file_upload_post(
 ) -> impl Responder {
     info!("file_upload_post");
 
-    let mut file: tokio::fs::File = match tokio::fs::File::create("/var/tmp/upload_test_file.txt").await {
-        Err(e) => {
-            error!("error creating file: {:?}", e);
-            return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("Error creating file"));
-        }
-        Ok(f) => f
-    };
-
     while let Some(p) = payload.next().await {
         let mut field = p.unwrap();
         let cd = field.content_disposition().unwrap();
         let field_name = cd.get_name().unwrap();
-        // let file_name = cd.get_filename().map(|s| s.to_string());
-
-        debug!("Processing field: {}", field_name);
-
         match field_name {
             "file" => {
-                let file_name = cd.get_filename().map(String::from);
-                let file_content = Some(field.map(|chunk| chunk.unwrap()).collect::<Vec<Bytes>>().await);
-                debug!("Received file field: filename = {:?}", file_name);
-                debug!("Received file field: content = {:?}", file_content);
+                let file_name = cd.get_filename().map(String::from).unwrap();
+                // debug!("Receiving file: {}", file_name);
+
+                let mut file = match tokio::fs::File::create(format!("/var/tmp/{}", file_name)).await {
+                    Err(e) => {
+                        error!("error creating file: {:?}", e);
+                        return HttpResponse::InternalServerError()
+                            .json(ApiResponse::error("Error creating file"));
+                    }
+                    Ok(f) => f
+                };
+
+                while let Some(next_chunk) = field.next().await {
+                    let chunk = match next_chunk {
+                        Err(e) => {
+                            error!("error reading chunk: {:?}", e);
+                            return HttpResponse::InternalServerError()
+                                .json(ApiResponse::error("Error reading file chunk"));
+                        }
+                        Ok(c) => {
+                            debug!("read chunk of size: {}", c.len());
+                            c
+                        }
+                    };
+
+                    if let Err(e) = file.write_all(&chunk).await {
+                        error!("error writing chunk to file: {:?}", e);
+                        return HttpResponse::InternalServerError()
+                            .json(ApiResponse::error("Error writing file chunk"));
+                    }
+                }
             },
             _ => {
                 debug!("unhandled field: {}", field_name);
