@@ -1,0 +1,10 @@
+[package]
+name = "file_provider"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "*", features = ["v4"] }
+chrono = "*"
+serde = "*"
+serde_json = "*"

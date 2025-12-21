@@ -1,0 +1,29 @@
+[package]
+name = "file_provider_postgres"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "*", features = ["v4"] }
+chrono = "*"
+serde = "*"
+serde_json = "*"
+
+tracing = "*"
+sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+
+
+# projects
+database_provider = { path = "../database_provider" }
+config = { path = "../config" }
+file_provider = { path = "../file_provider" }
+
+
+[dev-dependencies]
+tracing-subscriber = "*"
+rand = "*"
+actix-web = "*"
+
+tenants_provider = { path = "../tenants_provider" }
+tenants_provider_postgres = { path = "../tenants_provider_postgres" }
