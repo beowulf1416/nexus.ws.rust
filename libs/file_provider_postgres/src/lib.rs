@@ -164,4 +164,37 @@ impl file_provider::FileProvider for PostgresFileProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    use file_provider::FileProvider;
+    use tenants_provider::TenantsProvider;
+
+
+    #[actix_web::test]
+    async fn test_postgres_file_provider() {
+        if let Err(e) = tracing_subscriber::fmt::try_init() {
+            println!("error: {:?}", e);
+        }
+
+        let cfg = config::Config::from_env();
+        let db_provider = database_provider::DatabaseProvider::new(&cfg);
+        let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+        let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+        let tenant = tp.tenant_fetch_by_name("default").await.unwrap();
+        let tenant_id = tenant.tenant_id();
+
+
+        let fpp = PostgresFileProvider::new(&dp);
+
+        let folder = file_provider::Folder {
+            folder_id: uuid::Uuid::new_v4(),
+            name: "Test Folder".to_string()
+        };
+
+        if let Err(e) = fpp.folder_add(&tenant_id, &folder).await {
+            error!("error adding folder: {:?}", e);
+            assert!(false, "error adding folder");
+        };
+    }
 }
