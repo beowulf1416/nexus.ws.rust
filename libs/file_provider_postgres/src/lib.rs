@@ -3,6 +3,9 @@ use tracing::{
     error
 };
 
+use sqlx::Row;
+
+
 pub struct PostgresFileProvider {
     dp: database_provider::DatabaseProvider
 }
@@ -63,10 +66,13 @@ impl file_provider::FileProvider for PostgresFileProvider {
                         error!("Error getting folder record: {:?}", e);
                         return Err("Error getting folder record");
                     }
-                    Ok(record) => {
+                    Ok(r) => {
+                        let folder_id: uuid::Uuid = r.get("folder_id");
+                        let name: String = r.get("name");
+
                         return Ok(file_provider::Folder {
-                            folder_id: record.0,
-                            name: record.1
+                            folder_id,
+                            name
                         });
                     }
                 }
@@ -90,11 +96,14 @@ impl file_provider::FileProvider for PostgresFileProvider {
                         error!("Error listing files in folder: {:?}", e);
                         return Err("Error listing files in folder");
                     }
-                    Ok(records) => {
-                        let files: Vec<file_provider::File> = records.into_iter().map(|record| {
+                    Ok(rows) => {
+                        let files: Vec<file_provider::File> = rows.into_iter().map(|r| {
+                            let file_id: uuid::Uuid = r.get("file_id");
+                            let name: String = r.get("name");
+
                             file_provider::File {
-                                file_id: record.0,
-                                name: record.1
+                                file_id,
+                                name
                             }
                         }).collect();
                         return Ok(files);
@@ -147,10 +156,13 @@ impl file_provider::FileProvider for PostgresFileProvider {
                         error!("Error getting folder record: {:?}", e);
                         return Err("Error getting folder record");
                     }
-                    Ok(record) => {
+                    Ok(r) => {
+                        let file_id: uuid::Uuid = r.get("file_id");
+                        let name: String = r.get("name");
+
                         return Ok(file_provider::File {
-                            file_id: record.0,
-                            name: record.1
+                            file_id,
+                            name
                         });
                     }
                 }
