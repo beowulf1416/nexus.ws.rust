@@ -117,14 +117,16 @@ impl file_provider::FileProvider for PostgresFileProvider {
     async fn file_add(
         &self,
         tenant_id: &uuid::Uuid,
+        folder_id: &uuid::Uuid,
         file: &file_provider::File
     ) -> Result<(), &'static str> {
         info!("file_add");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call files.file_add($1,$2,$3);")
+            match sqlx::query("call files.file_add($1,$2,$3,$4);")
                 .bind(tenant_id)
                 .bind(file.file_id)
+                .bind(folder_id)
                 .bind(file.name.clone())
                 .execute(&pool)
                 .await {
@@ -203,10 +205,23 @@ mod tests {
             folder_id: uuid::Uuid::new_v4(),
             name: "Test Folder".to_string()
         };
+        let folder_id = folder.folder_id;
 
         if let Err(e) = fpp.folder_add(&tenant_id, &folder).await {
             error!("error adding folder: {:?}", e);
             assert!(false, "error adding folder");
         };
+
+        let file = file_provider::File {
+            file_id: uuid::Uuid::new_v4(),
+            name: "Test File".to_string()
+        };
+
+        if let Err(e) = fpp.file_add(&tenant_id, &folder_id, &file).await {
+            error!("error adding file: {:?}", e);
+            assert!(false, "error adding file");
+        }
+
+
     }
 }

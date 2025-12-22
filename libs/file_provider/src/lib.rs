@@ -30,6 +30,7 @@ pub trait FileProvider {
     fn file_add(
         &self,
         tenant_id: &uuid::Uuid,
+        folder_id: &uuid::Uuid,
         file: &File
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
