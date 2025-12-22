@@ -12,7 +12,13 @@ pub struct Item {
 pub struct Warehouse {
     pub id: uuid::Uuid,
     pub name: String,
-    pub address: String
+    pub description: String,
+
+    pub street: String,
+    pub city: String,
+    pub state: String,
+    pub zip_code: String,
+    pub country_id: i32
 }
 
 pub struct Location {
