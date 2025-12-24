@@ -33,10 +33,13 @@ use actix_multipart::{
 use tokio::{io::AsyncWriteExt};
 
 
-
-use crate::endpoints::{
-    ApiResponse,
-    default_option_response
+use file_provider::FileProvider;
+use crate::{
+    endpoints::{
+        ApiResponse,
+        default_option_response
+    },
+    classes::user
 };
 
 
@@ -56,9 +59,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
 async fn file_upload_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
     mut payload: Multipart
 ) -> impl Responder {
     info!("file_upload_post");
+
+    let mut folder_id: uuid::Uuid = uuid::Uuid::nil();
+    let mut file_id: uuid::Uuid = uuid::Uuid::nil();
+    let mut file_name: String = String::new();
+    let mut file_uploaded = false;
 
     while let Some(p) = payload.next().await {
         let mut field = p.unwrap();
@@ -66,7 +75,7 @@ async fn file_upload_post(
         let field_name = cd.get_name().unwrap();
         match field_name {
             "file" => {
-                let file_name = cd.get_filename().map(String::from).unwrap();
+                file_name = cd.get_filename().map(String::from).unwrap();
                 // debug!("Receiving file: {}", file_name);
 
                 let mut file = match tokio::fs::File::create(format!("/var/tmp/{}", file_name)).await {
@@ -97,10 +106,76 @@ async fn file_upload_post(
                             .json(ApiResponse::error("Error writing file chunk"));
                     }
                 }
+
+                file_uploaded = true;
             },
+            "folder_id" => {
+                let mut data = Vec::new();
+                while let Some(bytes) = field.next().await {
+                    match bytes {
+                        Err(e) => {
+                            error!("error reading folder_id bytes: {:?}", e);
+                            return HttpResponse::InternalServerError()
+                                .json(ApiResponse::error("Error reading folder_id"));
+                        }
+                        Ok(b) => {
+                            data.extend_from_slice(&b);
+                        }
+                    }
+                }
+
+                if let Ok(id_str) = String::from_utf8(data.clone()) {
+                    if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+                        folder_id = id;
+                    } else {
+                        return HttpResponse::BadRequest()
+                            .json(ApiResponse::error("Invalid folder_id"));
+                    }
+                }
+            },
+            "file_id" => {
+                let mut data = Vec::new();
+                while let Some(bytes) = field.next().await {
+                    match bytes {
+                        Err(e) => {
+                            error!("error reading file_id bytes: {:?}", e);
+                            return HttpResponse::InternalServerError()
+                                .json(ApiResponse::error("Error reading file_id"));
+                        }
+                        Ok(b) => {
+                            data.extend_from_slice(&b);
+                        }
+                    }
+                }
+
+                if let Ok(id_str) = String::from_utf8(data.clone()) {
+                    if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+                        file_id = id;
+                    } else {
+                        return HttpResponse::BadRequest()
+                            .json(ApiResponse::error("Invalid file_id"));
+                    }
+                }
+            }
             _ => {
                 debug!("unhandled field: {}", field_name);
             }
+        }
+    }
+
+    if file_uploaded {
+        let fp = file_provider_postgres::PostgresFileProvider::new(&dp);
+        if let Err(e) = fp.file_add(
+            &user.tenant().tenant_id(), 
+            &folder_id, 
+            &file_provider::File::new(
+                file_id,
+                file_name.clone()
+            )
+        ).await {
+            error!("error adding file to provider: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("Error saving file"));
         }
     }
 

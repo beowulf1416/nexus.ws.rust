@@ -9,6 +9,20 @@ pub struct File {
 }
 
 
+impl File {
+
+    pub fn new(
+        file_id: uuid::Uuid,
+        name: String 
+    ) -> Self {
+        return File {
+            file_id,
+            name
+        };
+    }
+}
+
+
 pub trait FileProvider {
 
     fn folder_add(
