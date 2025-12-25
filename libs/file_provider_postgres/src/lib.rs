@@ -131,8 +131,8 @@ impl file_provider::FileProvider for PostgresFileProvider {
                 .execute(&pool)
                 .await {
                     Err(e) => {
-                        error!("Error adding folder record: {:?}", e);
-                        return Err("Error adding folder record");
+                        error!("Error adding file record: {:?}", e);
+                        return Err("Error adding file record");
                     }
                     Ok(_) => {
                         return Ok(());
