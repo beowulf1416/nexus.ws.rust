@@ -3,6 +3,20 @@ pub struct Folder {
     pub name: String
 }
 
+
+impl Folder {
+
+    pub fn new (
+        folder_id: uuid::Uuid,
+        name: String 
+    ) -> Self {
+        return Folder {
+            folder_id,
+            name
+        };
+    }
+}
+
 pub struct File {
     pub file_id: uuid::Uuid,
     pub name: String

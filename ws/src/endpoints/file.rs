@@ -54,6 +54,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(file_upload_post))
         )
+        .service(
+            web::resource("folder/create")
+                .wrap(Permission::new("files.folders.create"))
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(folder_create_post))
+        )
     ;
 }
 
@@ -183,4 +189,39 @@ async fn file_upload_post(
 
     return HttpResponse::Ok()
         .json(ApiResponse::ok("File uploaded successfully"));
+}
+
+
+
+#[derive((Debug, Deserialize))]
+struct FolderCreatePost {
+    folder_id: uuid::Uuid,
+    name: String
+}
+
+async fn folder_create_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<FolderCreatePost>
+) -> impl Responder {
+    info!("folder_create_post");
+
+    let fp = file_provider_postgres::PostgresFileProvider::new(&dp);
+    match fp.folder_add(
+        &user.tenant().tenant_id(),
+        &file_provider::Folder::new(
+            params.folder_id,
+            params.name.clone()
+        )
+    ).await {
+        Err(e) => {
+            error!("error creating folder: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("Error creating folder"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("Folder created successfully"));
+        }
+    }
 }
