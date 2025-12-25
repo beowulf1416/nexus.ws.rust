@@ -1,0 +1,17 @@
+auth=$(curl -i \
+    -X POST \
+    -H "Content-Type: application/json" \
+    --data '{ "email":"test_1@test.com", "pw":"test12test" }' \
+    http://localhost:8080/session/sign-in | grep -i "^authorization")
+
+
+# remove whitespace
+auth="${auth//[[:space:]]/}"
+
+curl -i \
+    --trace-ascii - \
+    -H "${auth}" \
+    -F "folder_id=0cf05926-b2f1-4888-b1de-31d847fe56ee" \
+    -F "file=@/home/ferd/Documents/projects/devphilplus/nexus/ws/rust/nexus/README.md" \
+    http://localhost:8080/file/upload
+
