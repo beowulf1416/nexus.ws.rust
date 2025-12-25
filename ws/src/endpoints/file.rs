@@ -41,6 +41,7 @@ use crate::{
     },
     classes::user
 };
+use crate::middleware::permissions::Permission;
 
 
 
@@ -49,6 +50,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
         .service(
             web::resource("upload")
+                .wrap(Permission::new("files.upload"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(file_upload_post))
         )
