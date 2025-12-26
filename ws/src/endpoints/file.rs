@@ -60,6 +60,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(folder_create_post))
         )
+        .service(
+            web::resource("folder/list/folders")
+                .wrap(Permission::new("files.folders.list.folders"))
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().to(folder_list_folders_post))
+        )
     ;
 }
 
@@ -222,6 +228,44 @@ async fn folder_create_post(
         Ok(_) => {
             return HttpResponse::Ok()
                 .json(ApiResponse::ok("Folder created successfully"));
+        }
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
+struct FolderListFoldersPost {
+    folder_id: uuid::Uuid
+}
+
+async fn folder_list_folders_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<FolderListFoldersPost>
+) -> impl Responder {
+    info!("folder_list_folders_post");
+
+    let fp = file_provider_postgres::PostgresFileProvider::new(&dp);
+
+    let f1 = fp.folder_list_folders(&params.folder_id);
+    let f2 = fp.folder_list_files(&params.folder_id);
+
+    match futures::try_join!(f1, f2) {
+        Err(e) => {
+            error!("unable to fetch files and folders: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch files and folders"));
+        }
+        Ok((folders, files)) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                    true,
+                    "successfully fetched files and folders",
+                    Some(json!({
+                        "files": files,
+                        "folders": folders
+                    }))
+                ));
         }
     }
 }
