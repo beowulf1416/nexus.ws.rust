@@ -193,7 +193,7 @@ async fn file_upload_post(
 
 
 
-#[derive((Debug, Deserialize))]
+#[derive(Debug, Deserialize)]
 struct FolderCreatePost {
     folder_id: uuid::Uuid,
     name: String
