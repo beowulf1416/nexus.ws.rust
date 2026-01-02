@@ -67,6 +67,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(Arc::new(token_generator.clone())))
 
 
+            .service(web::scope("/common").configure(crate::endpoints::common::config))
             .service(web::scope("/session").configure(crate::endpoints::session::config))
             .service(web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config))
             .service(web::scope("/users").configure(crate::endpoints::user::users::config))
