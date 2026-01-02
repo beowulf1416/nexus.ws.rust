@@ -1,3 +1,9 @@
+use serde::{
+    Serialize,
+    Deserialize
+};
+
+#[derive(Serialize)]
 pub struct Country {
     pub id: i32,
     pub name: String,
@@ -6,6 +12,7 @@ pub struct Country {
 }
 
 
+#[derive(Serialize)]
 pub struct Currency {
     pub id: i32,
     pub name: String,
@@ -14,6 +21,7 @@ pub struct Currency {
 }
 
 
+#[derive(Serialize)]
 pub struct Gender {
     pub id: i16,
     pub name: String
