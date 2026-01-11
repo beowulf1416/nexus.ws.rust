@@ -9,16 +9,20 @@ pub struct Item {
 }
 
 
-pub struct Warehouse {
-    pub id: uuid::Uuid,
-    pub name: String,
-    pub description: String,
-
+pub struct Address {
     pub street: String,
     pub city: String,
     pub state: String,
     pub zip_code: String,
     pub country_id: i32
+}
+
+pub struct Warehouse {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub description: String,
+
+    pub address: Address
 }
 
 pub struct Location {

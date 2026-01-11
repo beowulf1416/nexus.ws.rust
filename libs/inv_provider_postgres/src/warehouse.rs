@@ -41,11 +41,11 @@ impl inv_provider::WarehouseProvider for PostgresWarehouseProvider {
                 .bind(warehouse.id)
                 .bind(warehouse.name.clone())
                 .bind(warehouse.description.clone())
-                .bind(warehouse.street.clone())
-                .bind(warehouse.city.clone())
-                .bind(warehouse.state.clone())
-                .bind(warehouse.zip_code.clone())
-                .bind(warehouse.country_id)
+                .bind(warehouse.address.street.clone())
+                .bind(warehouse.address.city.clone())
+                .bind(warehouse.address.state.clone())
+                .bind(warehouse.address.zip_code.clone())
+                .bind(warehouse.address.country_id)
                 .execute(&pool)
                 .await {
                     Err(e) => {
@@ -117,11 +117,13 @@ mod tests {
             id: uuid::Uuid::new_v4(),
             name: "Main Warehouse".to_string(),
             description: "The primary warehouse".to_string(),
-            street: "123 Main St".to_string(),
-            city: "Metropolis".to_string(),
-            state: "NY".to_string(),
-            zip_code: "12345".to_string(),
-            country_id: 840 // USA
+            address: inv_provider::Address {
+                street: "123 Main St".to_string(),
+                city: "Metropolis".to_string(),
+                state: "NY".to_string(),
+                zip_code: "12345".to_string(),
+                country_id: 840 // USA
+            }
         };
 
         if let Err(e) = provider.warehouse_save(&tenant_id, &wh).await {
