@@ -42,13 +42,23 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 }
 
 
+#[derive(Debug, Deserialize)]
+struct Address {
+    street: String,
+    city: String,
+    state: String,
+    zip: String,
+    country_id: i32
+}
+
+
 
 #[derive(Debug, Deserialize)]
 struct WarehouseSavePost {
     tenant_id: uuid::Uuid,
     id: uuid::Uuid,
     name: String,
-    address: String,
+    address: Address
 }
 
 
