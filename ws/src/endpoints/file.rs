@@ -16,13 +16,13 @@ use serde_json::json;
 use futures::StreamExt;
 
 use actix_web::{
-    http, 
+    http,
     web::{
-        self, 
+        self,
         Bytes
-    }, 
+    },
     dev::Payload,
-    HttpResponse, 
+    HttpResponse,
     Responder
 };
 use actix_multipart::{
@@ -77,6 +77,8 @@ async fn file_upload_post(
     mut payload: Multipart
 ) -> impl Responder {
     info!("file_upload_post");
+
+    // debug!("payload: {:?}", payload);
 
     let mut folder_id: uuid::Uuid = uuid::Uuid::nil();
     let mut file_id: uuid::Uuid = uuid::Uuid::nil();
@@ -180,8 +182,8 @@ async fn file_upload_post(
     if file_uploaded {
         let fp = file_provider_postgres::PostgresFileProvider::new(&dp);
         if let Err(e) = fp.file_add(
-            &user.tenant().tenant_id(), 
-            &folder_id, 
+            &user.tenant().tenant_id(),
+            &folder_id,
             &file_provider::File::new(
                 file_id,
                 file_name.clone()
