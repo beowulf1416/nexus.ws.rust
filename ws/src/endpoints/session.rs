@@ -14,10 +14,10 @@ use serde_json::json;
 use http::header::AUTHORIZATION;
 use actix_web::{
     guard,
-    dev::ConnectionInfo, 
-    http, 
-    web, 
-    HttpResponse, 
+    dev::ConnectionInfo,
+    http,
+    web,
+    HttpResponse,
     Responder
 };
 
@@ -57,6 +57,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             web::resource("tenant/set")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(user_session_tenant_set_post))
+        )
+        .service(
+        	web::resource("tenants")
+         .route(web::method(http::Method::OPTIONS).to(default_option_response))
+         .route(web::post().guard(guard::Header("content-type", "application/json")).to(user_session_tenants_fetch_post))
         )
     ;
 }
@@ -260,4 +265,33 @@ async fn user_session_tenant_set_post(
     ));
 
     return response;
+}
+
+
+async fn user_session_tenants_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+) -> impl Responder {
+    info!("user_session_tenants_fetch_post");
+
+    let user_id = user.user_id();
+    let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+
+    match tp.tenant_user_tenants_fetch(&user_id).await {
+	    Err(e) => {
+	        error!("unable to fetch tenants: {}", e);
+			return HttpResponse::InternalServerError()
+				.json(ApiResponse::error("unable to fetch tenants"));
+	    }
+        Ok(tenants) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::new(
+                	true,
+                	"tenants fetched successfully",
+                	Some(json!({
+                		"tenants": tenants
+                 	}))
+                ));
+        }
+    }
 }
