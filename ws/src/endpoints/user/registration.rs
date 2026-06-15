@@ -12,14 +12,15 @@ use serde::{
 use serde_json::json;
 
 use rand::{
+	prelude::*,
     distr::Alphanumeric,
     Rng
 };
 
 use actix_web::{
-    http, 
-    web, 
-    HttpResponse, 
+    http,
+    web,
+    HttpResponse,
     Responder
 };
 
@@ -76,7 +77,7 @@ async fn user_registration_signup_post(
     // generate token
     let mut rng = rand::rng();
     let token: String = (0..TOKEN_LENGTH)
-        .map(|_| rng.sample(Alphanumeric) as char)
+        .map(|_| rng.sample(rand::distr::Alphanumeric) as char)
         .collect()
         ;
 
@@ -101,7 +102,7 @@ async fn user_registration_signup_post(
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("registration failed"))
                 ;
-        }   
+        }
     }
 
     return HttpResponse::Ok()
@@ -127,7 +128,7 @@ async fn user_registration_signup_verified_post(
 
     // mark registration record as verified
     if let Err(e) = ur.verify_registration(
-        &params.register_id, 
+        &params.register_id,
         &params.token
     ).await {
         error!("unable to verify user registration: {}", e);

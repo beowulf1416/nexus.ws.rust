@@ -118,15 +118,18 @@ async fn user_session_signin_post(
             // generate jwt token
             // let tg = token::TokenGenerator::new(config.token_secret().as_str());
 
-            let claim = token::Claim::new(
+            // let claim = token::Claim::new(
+            //     &user.user_id,
+            //     &uuid::Uuid::nil(),
+            //     &params.email,
+            //     &params.email
+            // );
+
+            match tg.generate(
                 &user.user_id,
                 &uuid::Uuid::nil(),
                 &params.email,
                 &params.email
-            );
-
-            match tg.generate(
-                &claim
             ) {
                 Err(e) => {
                     error!("unable to generate token: {}", e);
@@ -202,6 +205,8 @@ async fn user_session_user_post(
     }
 
 
+
+
     return HttpResponse::Ok()
         .json(ApiResponse::new(
             true,
@@ -238,15 +243,18 @@ async fn user_session_tenant_set_post(
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
         if let Ok(new_tenant) = tp.tenants_fetch_by_id(&params.tenant_id).await {
-            let claim = token::Claim::new(
+            // let claim = token::Claim::new(
+            //     &user.user_id(),
+            //     &new_tenant.tenant_id(),
+            //     &user.name(),
+            //     &user.email()
+            // );
+
+            match tg.generate(
                 &user.user_id(),
                 &new_tenant.tenant_id(),
                 &user.name(),
                 &user.email()
-            );
-
-            match tg.generate(
-                &claim
             ) {
                 Err(e) => {
                     error!("unable to generate token: {}", e);

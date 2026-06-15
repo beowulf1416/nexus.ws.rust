@@ -60,17 +60,20 @@ async fn get_user_from_request(
     }
 
     if let Some(header_value) = req.headers().get(header::AUTHORIZATION)
-        && let Ok(token_value) = header_value.to_str() 
+        && let Ok(token_value) = header_value.to_str()
     {
         let pattern = regex::Regex::new(r"(?i)bearer").expect("incorrect regex pattern to retrieve bearer authentication");
         let token = pattern.replace(token_value, "").to_string();
         let token = token.trim();
-        
+
         let mut user_id = uuid::Uuid::nil();
         let mut tenant_id = uuid::Uuid::nil();
 
         if let Some(tg) = req.app_data::<web::Data<Arc<token::TokenGenerator>>>() {
-            let claim = tg.claim(&token);
+            let claim = match tg.parse_token(&token) {
+            	Err(_) => token::AuthData::default(),
+                Ok(claim) => claim,
+            };
             if !claim.is_empty() {
                 user_id = claim.user_id;
                 tenant_id = claim.tenant_id;
@@ -86,7 +89,7 @@ async fn get_user_from_request(
             let f2 = tp.tenant_user_tenants_fetch(&user_id);
             let f3 = tp.tenants_fetch_by_id(&tenant_id);
             let f4 = tp.tenant_user_permissions_fetch(&user_id, &tenant_id);
-            
+
             match try_join!(f1, f2, f3, f4) {
                 Err(e) => {
                     error!("unable to fetch user or tenant data for user: {:?}", e);
@@ -139,5 +142,3 @@ async fn get_user_from_request(
     debug!("returning anonymous");
     return user::User::anonymous();
 }
-
-

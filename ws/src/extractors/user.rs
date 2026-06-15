@@ -52,7 +52,7 @@ impl Display for UserError {
 impl ResponseError for UserError {
 
     fn status_code(&self) -> actix_http::StatusCode {
-        return StatusCode::INTERNAL_SERVER_ERROR; 
+        return StatusCode::INTERNAL_SERVER_ERROR;
     }
 }
 
@@ -113,9 +113,9 @@ impl FromRequest for User {
                     return Ok(cloned);
                 });
             }
-        
+
             // check for token
-            if let Some(header_value) = req.headers().get(header::AUTHORIZATION) 
+            if let Some(header_value) = req.headers().get(header::AUTHORIZATION)
                 && let Ok(token_value) = header_value.to_str() {
 
                 let pattern = regex::Regex::new(r"(?i)bearer").expect("incorrect regex pattern to retrieve bearer authentication");
@@ -126,7 +126,12 @@ impl FromRequest for User {
 
                 // validate token
                 if let Some(tg) = req.app_data::<web::Data<Arc<token::TokenGenerator>>>() {
-                    let claim = tg.claim(&token);
+                    let claim = match tg.parse_token(&token) {
+                        Err(_) => {
+                            token::AuthData::default()
+                        },
+                        Ok(claim) => claim,
+                    };
                     if !claim.is_empty() {
                         user_id = claim.user_id;
                     }
@@ -137,7 +142,7 @@ impl FromRequest for User {
 
                     return Box::pin(async move {
                         debug!("should only happen once");
-                        
+
                         let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
                         if let Ok(user) = up.fetch_by_id(&user_id).await {
@@ -167,5 +172,3 @@ impl FromRequest for User {
         });
     }
 }
-
-
