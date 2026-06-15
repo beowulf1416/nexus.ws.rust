@@ -6,9 +6,11 @@ edition = "2024"
 [dependencies]
 tracing = "*"
 
-hmac = "*"
-sha2 = "*"
-jwt = "*"
+#hmac = "*"
+#sha2 = "*"
+#jwt = "*"
+
+jsonwebtoken = { version = "*", features = ["rust_crypto"] }
 
 uuid = { version = "*", features = ["v4"] }
 

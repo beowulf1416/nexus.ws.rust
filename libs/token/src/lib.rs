@@ -1,63 +1,55 @@
 #![allow(clippy::needless_return)]
 
+use std::str::FromStr;
+
 use tracing::{
     info,
     error,
     debug
 };
 
-use std::collections::BTreeMap;
-
-use hmac::{
-    Hmac,
-    Mac
-};
-use sha2::Sha256;
-
-use jwt::{
-    SignWithKey,
-    VerifyWithKey,
-    error
-};
+use serde::{Serialize, Deserialize};
+use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
 
 
-
-#[derive(Debug, Clone)]
-pub struct Claim {
-    pub user_id: uuid::Uuid,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthData {
+	pub user_id: uuid::Uuid,
     pub tenant_id: uuid::Uuid,
-    pub user_name: String,
-    pub email: String
+    pub email: String,
+    pub username: String,
 }
 
+impl AuthData {
 
-impl Claim {
-    pub fn new(
-        user_id: &uuid::Uuid,
-        tenant_id: &uuid::Uuid,
-        user_name: &str,
-        email: &str
-    ) -> Self {
-        return Self {
-            user_id: *user_id,
-            tenant_id: tenant_id.clone(),
-            user_name: String::from(user_name),
-            email: String::from(email)
-        };
-    }
-
-    pub fn empty() -> Self {
-        return Self {
+    pub fn default() -> Self {
+        Self {
             user_id: uuid::Uuid::nil(),
             tenant_id: uuid::Uuid::nil(),
-            user_name: String::from(""),
-            email: String::from("")
-        };
+            email: String::new(),
+            username: String::new(),
+        }
     }
 
     pub fn is_empty(&self) -> bool {
-        return self.user_id.is_nil();
+        return self.user_id == uuid::Uuid::nil()
+            && self.tenant_id == uuid::Uuid::nil()
+            && self.email.is_empty()
+            && self.username.is_empty();
     }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Claim {
+	pub sub: String,
+	pub client_id: String,
+	pub email: String,
+	pub preferred_username: String,
+
+    pub iat: usize,
+    pub exp: usize,
+    pub nbf: usize
 }
 
 
@@ -80,109 +72,89 @@ impl TokenGenerator {
 
     pub fn generate(
         &self,
-        claim: &Claim
+        user_id: &uuid::Uuid,
+        tenant_id: &uuid::Uuid,
+        user_name: &str,
+        email: &str
     ) -> Result<String, &'static str> {
         info!("generate");
 
-        let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
-        let mut claims = BTreeMap::new();
-        
         let now = chrono::Utc::now();
         let expiry = now.checked_add_signed(chrono::TimeDelta::hours(1)).unwrap();
 
-        claims.insert("iat", now.timestamp().to_string());
-        claims.insert("exp", expiry.timestamp().to_string());
+        let header = Header {
+            alg: Algorithm::HS512,
+            kid: Some(String::from("todo")),
+            ..Default::default()
+        };
 
-        claims.insert("sid", claim.user_id.to_string());
-        claims.insert("client_id", claim.tenant_id.to_string());
-        claims.insert("preferred_username", claim.user_name.to_string());
-        claims.insert("email", claim.email.to_string());
+        let claims = Claim {
+            sub: user_id.to_string(),
+            client_id: tenant_id.to_string(),
+            email: String::from(email),
+            preferred_username: String::from(user_name),
+            iat: now.timestamp() as usize,
+            exp: expiry.timestamp() as usize,
+            nbf: now.timestamp() as usize
+        };
 
-        return match claims.sign_with_key(&key) {
+        let token = match encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.secret.as_bytes()),
+        ) {
             Err(e) => {
-                error!("unable to sign claims: {}", e);
-                Err("unable to sign claims")
+                error!("unable to encode token: {}", e);
+                return Err("unable to encode token");
             }
             Ok(result) => {
-                Ok(result)
+                result
             }
         };
+
+        return Ok(token);
     }
 
 
-    pub fn validate(
-        &self,
-        token: &str
-    ) -> bool {
-        info!("validate");
+    pub fn parse_token(&self, token: &str) -> Result<AuthData, &'static str> {
+        info!("parse_tokens");
         debug!("token: [{}]", token);
 
-        let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
-        
-        let result: Result<BTreeMap<String, String>, error::Error> = token.verify_with_key(&key);
-        if let Err(e) = result {
-            error!("unable to validate token: [{}]" ,e);
-            return false;
-        };
 
-        return true;
-    }
-
-    pub fn claim(&self, token: &str) -> Claim {
-        info!("claim");
-        debug!("token: [{}]", token);
-
-        let key: Hmac<Sha256> = Hmac::new_from_slice(self.secret.as_bytes()).unwrap();
-        let result: Result<BTreeMap<String, String>, error::Error> = token.verify_with_key(&key);
-        match result {
+        let tokens = match decode::<Claim>(
+            &token,
+            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &Validation::new(Algorithm::HS512),
+        ) {
             Err(e) => {
-                error!("unable to verify token: [{}]", e);
-                return Claim::empty();
+                error!("unable to decode token: {}", e);
+                return Err("unable to decode token");
             }
-            Ok(claims) => {
-                let user_id = match claims.get("sid") {
-                    None => uuid::Uuid::nil(),
-                    Some(id) => {
-                        match uuid::Uuid::parse_str(id) {
-                            Err(e) => {
-                                error!("invalid user id");
-                                uuid::Uuid::nil()
-                            }
-                            Ok(uid) => uid
-                        }
-                    }
-                };
+            Ok(tokens) => tokens,
+        };
 
-                let tenant_id = match claims.get("client_id") {
-                    None => uuid::Uuid::nil(),
-                    Some(id) => 
-                        match uuid::Uuid::parse_str(id) {
-                            Err(e) => {
-                                error!("invalid user id");
-                                uuid::Uuid::nil()
-                            }
-                            Ok(tid) => tid
-                        }
-                };
-
-                let user_name = match claims.get("uname") {
-                    None => String::from(""),
-                    Some(user_name) => user_name.to_string()
-                };
-
-                let email = match claims.get("email") {
-                    None => String::from(""),
-                    Some(email) => email.to_string()
-                };
-
-                return Claim::new(
-                    &user_id,
-                    &tenant_id,
-                    user_name.as_str(),
-                    email.as_str()
-                );
+        let claim = tokens.claims;
+        let user_id = match uuid::Uuid::from_str(claim.sub.as_str()) {
+            Err(e) => {
+                error!("unable to parse user_id: {}", e);
+                uuid::Uuid::nil()
             }
-        }
+            Ok(user_id) => user_id,
+        };
+        let tenant_id = match uuid::Uuid::from_str(claim.client_id.as_str()) {
+            Err(e) => {
+                error!("unable to parse client_id: {}", e);
+                uuid::Uuid::nil()
+            }
+            Ok(client_id) => client_id,
+        };
+
+        return Ok(AuthData {
+            user_id: user_id,
+            tenant_id: tenant_id,
+            email: claim.email,
+            username: claim.preferred_username,
+        });
     }
 }
 
