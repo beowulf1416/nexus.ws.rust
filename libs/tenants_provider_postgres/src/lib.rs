@@ -309,7 +309,7 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
-    
+
     }
 }
 
