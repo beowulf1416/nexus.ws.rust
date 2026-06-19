@@ -86,6 +86,34 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
     }
 
 
+    async fn set_active_multiple(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        active: &bool
+    ) -> Result<(), &'static str> {
+        info!("set_active_multiple");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call tenants.roles_set_active($1,$2);")
+                .bind(role_ids)
+                .bind(active)
+                .execute(&pool)
+                .await {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Error setting active state of roles: {:?}", e);
+                        return Err("Error setting active state of roles");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+
     async fn fetch(
         &self,
         tenant_id: &uuid::Uuid,
@@ -243,13 +271,13 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         }
     }
 
-    
+
     async fn assign_permissions(
         &self,
         role_ids: &Vec<uuid::Uuid>,
         permission_ids: &Vec<i32>
     ) -> Result<(), &'static str> {
-        info!("assign_permissions");    
+        info!("assign_permissions");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.role_permissions_add($1, $2);")
@@ -277,7 +305,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         role_ids: &Vec<uuid::Uuid>,
         permission_ids: &Vec<i32>
     ) -> Result<(), &'static str> {
-        info!("revoke_permissions");    
+        info!("revoke_permissions");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.role_permissions_remove($1, $2);")
@@ -305,7 +333,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         permission_ids: &Vec<i32>,
         active: bool
     ) -> Result<(), &'static str> {
-        info!("revoke_permissions");    
+        info!("revoke_permissions");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call tenants.role_permission_set_active($1, $2, $3);")

@@ -28,6 +28,12 @@ pub trait RolesProvider {
         active: &bool
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
+    fn set_active_multiple(
+        &self,
+        role_ids: &Vec<uuid::Uuid>,
+        active: &bool
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
     fn fetch(
         &self,
         tenant_id: &uuid::Uuid,

@@ -7,10 +7,10 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::json;
 use actix_web::{
-    http, 
-    web, 
+    http,
+    web,
     guard,
-    HttpResponse, 
+    HttpResponse,
     Responder
 };
 
@@ -23,7 +23,7 @@ use crate::middleware::permissions::Permission;
 
 use tenants_provider::TenantsProvider;
 use users_provider::UsersProvider;
-use roles_provider::{ 
+use roles_provider::{
     Role,
     RolesProvider
 };
@@ -100,6 +100,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_permissions_post))
         )
+        .service(
+            web::resource("roles/set/active")
+                .wrap(Permission::new("tenant.role.set.active"))
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_roles_set_active_post))
+        )
         // .service(
         //     web::resource("users/fetch")
         //         .wrap(Permission::new("tenant.users.list"))
@@ -162,8 +168,8 @@ async fn admin_tenants_save(
     let atp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
     if let Err(e) = atp.tenant_save(
-        &params.tenant_id, 
-        &params.name, 
+        &params.tenant_id,
+        &params.name,
         &params.description
     ).await {
         error!("unable to save tenant: {}", e);
@@ -481,6 +487,37 @@ async fn admin_tenants_set_active(
 }
 
 
+#[derive(Debug, Deserialize)]
+struct AdminRolesSetActivePost {
+    role_ids: Vec<uuid::Uuid>,
+    active: bool
+}
+
+async fn admin_roles_set_active_post(
+	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+	params: web::Json<AdminRolesSetActivePost>
+) -> impl Responder {
+	info!("admin_roles_set_active_post");
+
+	let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+	match rp.set_active_multiple(
+        &params.role_ids,
+        &params.active
+    ).await {
+        Err(e) => {
+            error!("unable to set active state for roles: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to set active state for roles"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully set active state for roles"));
+        }
+    }
+}
+
+
 
 /*
 #[derive(Debug, Deserialize)]
@@ -586,7 +623,7 @@ mod tests {
 
         // assign user to tenant
         if let Err(e) = up.tenant_assign(
-            &vec![user_id], 
+            &vec![user_id],
             &vec![tenant_id]
         ).await {
             error!(e);
@@ -613,7 +650,7 @@ mod tests {
             error!("unable to create role: {:?}", e);
             assert!(false, "unable to create role");
         }
-        
+
         if let Err(e) = rp.assign_permissions(
             &vec!(role_id),
             &vec!(1)
