@@ -51,8 +51,6 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                         let name: String = r.get("name");
                         let description: String = r.get("description");
 
-
-
                         return Ok(tenants_provider::Tenant::new(
                             &tenant_id,
                             active,

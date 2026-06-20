@@ -71,6 +71,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_save_post))
         )
         .service(
+            web::resource("role/fetch")
+                .wrap(Permission::new("tenant.roles.fetch"))
+                .route(web::method(http::Method::OPTIONS).to(default_option_response))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_fetch_post))
+        )
+        .service(
             web::resource("roles/fetch")
                 .wrap(Permission::new("tenant.roles.list"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
@@ -299,6 +305,39 @@ async fn admin_role_save_post(
         Ok(_) => {
             return HttpResponse::Ok()
                 .json(ApiResponse::ok("successfully added role"));
+        }
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
+struct RoleFetchPost {
+    role_id: uuid::Uuid,
+}
+
+async fn admin_role_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<RoleFetchPost>
+) -> impl Responder {
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+
+    match rp.fetch_by_id(
+        &params.role_id
+    ).await {
+        Err(e) => {
+            error!("unable to fetch role: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch role"));
+        }
+        Ok(role) => {
+	        return HttpResponse::Ok()
+	            .json(ApiResponse::new(
+	                true,
+	                &"successfully retrieved role by id",
+	                Some(json!({
+	                    "role": role
+	                }))
+	            ));
         }
     }
 }
