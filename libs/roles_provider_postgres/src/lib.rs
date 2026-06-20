@@ -156,6 +156,43 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         }
     }
 
+    async fn fetch_by_id(
+        &self,
+        role_id: &uuid::Uuid
+    ) -> Result<roles_provider::Role, &'static str> {
+        info!("fetch_by_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from tenants.role_fetch($1);")
+                .bind(role_id)
+                .fetch_one(&pool)
+                .await {
+                    Ok(r) => {
+                        let role_id: uuid::Uuid = r.get("role_id");
+                        let active: bool = r.get("active");
+                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                        let name: String = r.get("name");
+                        let description: String = r.get("description");
+
+                        return Ok(roles_provider::Role {
+                            role_id,
+                            name,
+                            description,
+                            active,
+                            created
+                        });
+                    }
+                    Err(e) => {
+                        error!("Error fetching role record: {:?}", e);
+                        return Err("Error fetching role record");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
 
     async fn assign_users(
         &self,

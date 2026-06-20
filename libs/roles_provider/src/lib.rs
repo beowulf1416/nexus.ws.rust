@@ -40,6 +40,11 @@ pub trait RolesProvider {
         filter: &str
     ) -> impl Future<Output = Result<Vec<Role>, &'static str>> + Send;
 
+    fn fetch_by_id(
+        &self,
+        role_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Role, &'static str>> + Send;
+
     fn assign_users(
         &self,
         role_ids: &Vec<uuid::Uuid>,
