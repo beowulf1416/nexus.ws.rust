@@ -13,9 +13,9 @@ use serde::{
 use serde_json::json;
 
 use actix_web::{
-    http, 
-    web, 
-    HttpResponse, 
+    http,
+    web,
+    HttpResponse,
     Responder
 };
 
@@ -57,8 +57,10 @@ async fn permissions_fetch_post(
 
     let pp = permissions_provider_postgres::PostgresPermissionsProvider::new(&dp);
 
+    let filter = format!("%{}%", params.filter);
+
     match pp.fetch(
-        &params.filter
+        &filter
     ).await {
         Err(e) => {
             error!("unable to fetch permissions: {}", e);

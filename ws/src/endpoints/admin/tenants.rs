@@ -101,13 +101,13 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_users_post))
         )
         .service(
-            web::resource("role/assign/permissions")
+            web::resource("roles/assign/permissions")
                 .wrap(Permission::new("tenant.role.assign.permission"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().to(admin_role_assign_permissions_post))
         )
         .service(
-            web::resource("role/revoke/permissions")
+            web::resource("roles/revoke/permissions")
                 .wrap(Permission::new("tenant.role.assign.permission"))
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
                 .route(web::post().guard(guard::Header("content-type", "application/json")).to(admin_role_revoke_permissions_post))

@@ -25,7 +25,8 @@ use actix_web::{
 use crate::{
     classes::{
         user,
-        tenant
+        tenant,
+        permission
     },
     endpoints::{
         ApiResponse,
@@ -158,7 +159,7 @@ async fn user_session_signin_post(
 struct UserSessionResponseData {
     name: String,
     tenant: tenant::Tenant,
-    permissions: Vec<u16>,
+    permissions: Vec<i32>,
     tenants: Vec<tenant::Tenant>
 }
 
@@ -173,20 +174,51 @@ async fn user_session_user_post(
     debug!("{:?}", user);
 
     let user_id = user.user_id();
-    let mut tenant = tenant::Tenant::default();
-    let mut email = String::from("");
+    let tenant_id = user.tenant().tenant_id();
 
-    let tenants = user.tenants();
-
-    // let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
-    // if let Ok(auth_details) = ap.fetch_user_by_id(&user.user_id()).await {
-    //     email = auth_details.email;
-    // }
-
+    let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
     let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-    // let f1 = ap.fetch_user_by_id(&user.user_id());
-    // let f2 = tp.tenants_fetch_by_id(&user.tenant_id());
+    let f1 = ap.fetch_user_by_id(&user_id);
+    let f2 = tp.tenants_fetch_by_id(&tenant_id);
+    let f3 = tp.tenant_user_tenants_fetch(&user_id);
+    let f4 = tp.tenant_user_permissions_fetch(&user_id, &tenant_id);
+
+    match futures::future::try_join4(f1, f2, f3, f4).await {
+    	Err(e) => {
+    		return HttpResponse::InternalServerError()
+    			.json(ApiResponse::error(e));
+    	}
+    	Ok((user, tenant, tenants, permissions)) => {
+     		let t = tenant::Tenant::new(
+     			&tenant.tenant_id(),
+     			&tenant.name(),
+     			&tenant.description()
+     		);
+
+       		let ts = tenants.into_iter().map(|t| tenant::Tenant::new(
+       			&t.tenant_id(),
+       			&t.name(),
+       			&t.description()
+       		)).collect::<Vec<tenant::Tenant>>();
+
+         	let ps = permissions.into_iter().map(|p| p.id() ).collect::<Vec<i32>>();
+
+    		return HttpResponse::Ok()
+    			.json(ApiResponse::new(
+    				true,
+    				"success",
+    				Some(json!({
+    					"user": UserSessionResponseData {
+    						name: user.email,
+    						tenant: t,
+    						permissions: ps,
+    						tenants: ts
+    					}
+    				}))
+    			));
+    	}
+    }
 
     // if let Ok(t) = tp.tenants_fetch_by_id(&user.tenant().tenant_id()).await {
     //     tenant = tenant::Tenant::new(
@@ -196,30 +228,22 @@ async fn user_session_user_post(
     //     );
     // }
 
-    if let Ok(t) = tp.tenants_fetch_by_id(&user.tenant().tenant_id()).await {
-        tenant = tenant::Tenant::new(
-            &t.tenant_id(),
-            &t.name(),
-            &t.description()
-        );
-    }
 
 
 
-
-    return HttpResponse::Ok()
-        .json(ApiResponse::new(
-            true,
-            "success",
-            Some(json!({
-                "user": UserSessionResponseData {
-                    name: user.name(),
-                    tenant: tenant,
-                    permissions: vec!(),
-                    tenants: tenants
-                }
-            }))
-        ));
+    // return HttpResponse::Ok()
+    //     .json(ApiResponse::new(
+    //         true,
+    //         "success",
+    //         Some(json!({
+    //             "user": UserSessionResponseData {
+    //                 name: user.name(),
+    //                 tenant: tenant,
+    //                 permissions: vec!(),
+    //                 tenants: tenants
+    //             }
+    //         }))
+    //     ));
 }
 
 
