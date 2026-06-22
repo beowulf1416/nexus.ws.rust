@@ -159,7 +159,7 @@ async fn user_session_signin_post(
 struct UserSessionResponseData {
     name: String,
     tenant: tenant::Tenant,
-    permissions: Vec<i32>,
+    permissions: Vec<String>,
     tenants: Vec<tenant::Tenant>
 }
 
@@ -202,7 +202,7 @@ async fn user_session_user_post(
        			&t.description()
        		)).collect::<Vec<tenant::Tenant>>();
 
-         	let ps = permissions.into_iter().map(|p| p.id() ).collect::<Vec<i32>>();
+         	let ps = permissions.into_iter().map(|p| p.name() ).collect::<Vec<String>>();
 
     		return HttpResponse::Ok()
     			.json(ApiResponse::new(
