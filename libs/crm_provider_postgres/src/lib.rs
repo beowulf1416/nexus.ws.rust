@@ -85,6 +85,16 @@ mod tests {
 
 		let people_id = uuid::Uuid::new_v4();
 
-		let tenant_id = tp.get_tenant_id().await.unwrap();
+		let tenant_id = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+
+		let person = crm_provider::Person {
+			people_id: people_id,
+			first_name: String::from("test_first"),
+			middle_name: String::from("test_middle"),
+			last_name: String::from("test_last"),
+			prefix: String::from("prefix"),
+			suffix: String::from("suffix"),
+			gender: 0,
+		};
 	}
 }
