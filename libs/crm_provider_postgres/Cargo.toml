@@ -1,0 +1,24 @@
+[package]
+name = "crm_provider_postgres"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracing = "*"
+sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+uuid = { version = "*", features = ["v4"] }
+
+# projects
+database_provider = { path = "../database_provider" }
+crm_provider = { path = "../crm_provider" }
+
+
+[dev-dependencies]
+tracing-subscriber = "*"
+rand = "*"
+actix-web = "*"
+
+config = { path = "../config" }
+tenants_provider = { path = "../tenants_provider" }
+tenants_provider_postgres = { path = "../tenants_provider_postgres" }

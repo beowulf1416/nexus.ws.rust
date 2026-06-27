@@ -28,4 +28,4 @@ members = [
     "libs/document_provider",
     "libs/document_provider_postgres",
     "ws"
-]
+, "libs/crm_provider", "libs/crm_provider_postgres"]

@@ -4,6 +4,7 @@ pub mod permissions;
 pub mod user;
 pub mod file;
 pub mod documents;
+pub mod crm;
 pub mod admin;
 pub mod inventory;
 
