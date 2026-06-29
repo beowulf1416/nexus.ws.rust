@@ -6,6 +6,6 @@ edition = "2024"
 [dependencies]
 tracing = "*"
 uuid = { version = "*", features = ["v4"] }
-chrono = "*"
+chrono = { version = "*", features = ["serde"] }
 serde = "*"
 serde_json = "*"

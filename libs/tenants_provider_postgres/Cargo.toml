@@ -5,10 +5,10 @@ edition = "2024"
 
 [dependencies]
 tracing = "*"
-sqlx = { version = "*", features = ["postgres", "uuid"] }
+sqlx = { version = "*", features = ["postgres", "uuid", "chrono"] }
 
 uuid = { version = "*", features = ["v4"] }
-chrono = "*"
+chrono = { version = "*", features = ["serde"] }
 
 # projects
 database_provider = { path = "../database_provider" }
