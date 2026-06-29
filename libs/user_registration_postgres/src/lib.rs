@@ -87,7 +87,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
-        }    
+        }
     }
 
     async fn fetch_registration_details_by_id(
@@ -122,7 +122,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
-        }    
+        }
     }
 
 
@@ -158,7 +158,7 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{distr::Alphanumeric, Rng};
+    use rand::{distr::Alphanumeric, prelude::*};
 
     use users_provider::UsersProvider;
     use user_registration::UserRegistrationProvider;
@@ -234,7 +234,7 @@ mod tests {
             assert!(false, "error adding user details");
         }
 
-        
+
         let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
         if let Err(e) = ap.add_user_auth_password(&register_id, &email, &"test1test").await {
             assert!(false, "error adding user authentication");
