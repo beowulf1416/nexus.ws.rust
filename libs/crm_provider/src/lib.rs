@@ -26,6 +26,6 @@ pub trait CrmProvider {
 	fn person_save(
 		&self,
 		tenant_id: &uuid::Uuid,
-		person: Person
+		person: &Person
 	) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

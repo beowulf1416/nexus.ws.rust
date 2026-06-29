@@ -34,19 +34,20 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
     async fn person_save(
         &self,
         tenant_id: &uuid::Uuid,
-        person: crm_provider::Person
+        person: &crm_provider::Person
     ) -> Result<(), &'static str> {
         info!("person_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call crm.person_save($1, $2, $3, $4, $5, $6, $7);")
+            match sqlx::query("call crm.person_save($1, $2, $3, $4, $5, $6, $7, $8);")
                 .bind(tenant_id)
-                .bind(person.first_name)
-                .bind(person.middle_name)
-                .bind(person.last_name)
-                .bind(person.prefix)
-                .bind(person.suffix)
-                .bind(person.gender)
+                .bind(person.people_id.clone())
+                .bind(person.first_name.clone())
+                .bind(person.middle_name.clone())
+                .bind(person.last_name.clone())
+                .bind(person.prefix.clone())
+                .bind(person.suffix.clone())
+                .bind(person.gender.clone())
                 .execute(&pool)
                 .await {
                     Ok(_) => {
@@ -68,9 +69,10 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{distr::Alphanumeric, Rng};
+    use rand::{ distr::Alphanumeric, Rng };
 
     use tenants_provider::TenantsProvider;
+    use crm_provider::CrmProvider;
 
 	#[actix_web::test]
 	async fn test_registration() {
@@ -81,14 +83,19 @@ mod tests {
 	    let cfg = config::Config::from_env();
 	    let db_provider = database_provider::DatabaseProvider::new(&cfg);
 	    let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
 		let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+		let cp = PostgresCrmProvider::new(&dp);
 
 		let people_id = uuid::Uuid::new_v4();
 
-		let tenant_id = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+		let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+		let tenant_id = tenant.tenant_id();
 
 		let person = crm_provider::Person {
 			people_id: people_id,
+			active: true,
+			created: chrono::Utc::now(),
 			first_name: String::from("test_first"),
 			middle_name: String::from("test_middle"),
 			last_name: String::from("test_last"),
@@ -96,5 +103,10 @@ mod tests {
 			suffix: String::from("suffix"),
 			gender: 0,
 		};
+
+		if let Err(e) = cp.person_save(&tenant_id, &person).await {
+			error!("Error saving person record: {:?}", e);
+			assert!(false, "Failed to save person record");
+		}
 	}
 }
