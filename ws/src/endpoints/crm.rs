@@ -32,6 +32,8 @@ use crate::{
     }
 };
 
+use crm_provider::CrmProvider;
+
 
 
 pub fn config(cfg: &mut web::ServiceConfig) {
@@ -50,27 +52,55 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 }
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct PersonSavePostData {
-	tenant_id: String,
-	person_id: String,
+	tenant_id: uuid::Uuid,
+	person_id: uuid::Uuid,
 
 	first_name: String,
     middle_name: String,
     last_name: String,
     prefix: String,
     suffix: String,
-    gender: String,
+    gender: i16,
 }
 
 async fn person_save_post(
-	user: user::User
+	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+	user: user::User,
+	params: web::Json<PersonSavePostData>,
 ) -> impl Responder {
 	info!("person_save_post");
 
-	return HttpResponse::Ok().json(
-		ApiResponse::ok("person_save_post")
-	);
+	let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+
+	let person = crm_provider::Person {
+		people_id: params.person_id.clone(),
+		active: true,
+		created: chrono::Utc::now(),
+		first_name: params.first_name.clone(),
+		middle_name: params.middle_name.clone(),
+		last_name: params.last_name.clone(),
+		prefix: params.prefix.clone(),
+		suffix: params.suffix.clone(),
+		gender: params.gender.clone(),
+	};
+
+	match crm_provider.person_save(
+		&params.tenant_id,
+		&person,
+	).await {
+		Err(e) => {
+			error!("unable to save person record: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to save person record"));
+		}
+		Ok(_) => {
+			return HttpResponse::Ok().json(
+				ApiResponse::ok("successfully saved person record")
+			);
+		}
+	}
 }
 
 async fn business_save_post(
