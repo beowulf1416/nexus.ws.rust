@@ -11,7 +11,7 @@ use serde::{
 };
 use serde_json::json;
 
-use http::header::AUTHORIZATION;
+// use http::header::AUTHORIZATION;
 use actix_web::{
     guard,
     http,
@@ -103,12 +103,43 @@ async fn person_save_post(
 	}
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BusinessSavePostData {
+	tenant_id: uuid::Uuid,
+	business_id: uuid::Uuid,
+	name: String,
+	description: String,
+}
+
 async fn business_save_post(
-	user: user::User
+	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+	user: user::User,
+	params: web::Json<BusinessSavePostData>,
 ) -> impl Responder {
 	info!("business_save_post");
 
-	return HttpResponse::Ok().json(
-		ApiResponse::ok("business_save_post")
-	);
+		let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+
+		let business = crm_provider::Business {
+			business_id: params.business_id.clone(),
+			name: params.name.clone(),
+			description: params.description.clone(),
+		};
+
+		match crm_provider.business_save(
+			&params.tenant_id,
+			&business,
+		).await {
+			Err(e) => {
+				error!("unable to save business record: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to save business record"));
+			}
+			Ok(_) => {
+				return HttpResponse::Ok().json(
+					ApiResponse::ok("successfully saved business record")
+				);
+			}
+		}
 }
