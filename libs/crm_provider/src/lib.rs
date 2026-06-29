@@ -21,11 +21,24 @@ pub struct Person {
 	pub gender: i16,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Business {
+	pub business_id: uuid::Uuid,
+	pub name: String,
+	pub description: String,
+}
+
 pub trait CrmProvider {
 
 	fn person_save(
 		&self,
 		tenant_id: &uuid::Uuid,
 		person: &Person
+	) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+	fn business_save(
+		&self,
+		tenant_id: &uuid::Uuid,
+		business: &Business
 	) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

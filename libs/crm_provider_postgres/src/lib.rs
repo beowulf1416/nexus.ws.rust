@@ -63,6 +63,36 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn business_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        business: &crm_provider::Business
+    ) -> Result<(), &'static str> {
+    info!("business_save");
+
+	    if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+	        match sqlx::query("call crm.business_save($1, $2, $3, $4);")
+	            .bind(tenant_id)
+	            .bind(business.business_id.clone())
+	            .bind(business.name.clone())
+	            .bind(business.description.clone())
+	            .execute(&pool)
+	            .await {
+	                Ok(_) => {
+	                    return Ok(());
+	                }
+	                Err(e) => {
+	                    error!("Error saving business record: {:?}", e);
+	                    return Err("Error saving business record");
+	                }
+	            }
+	    } else {
+	        error!("No Postgres pool found for 'main'");
+	        return Err("Unable to get pool for 'main'");
+	    }
+
+    }
 }
 
 
@@ -75,7 +105,7 @@ mod tests {
     use crm_provider::CrmProvider;
 
 	#[actix_web::test]
-	async fn test_registration() {
+	async fn test_person_save() {
 	    if let Err(e) = tracing_subscriber::fmt::try_init() {
 	        println!("error: {:?}", e);
 	    }
@@ -109,4 +139,34 @@ mod tests {
 			assert!(false, "Failed to save person record");
 		}
 	}
+
+		#[actix_web::test]
+		async fn test_business_save() {
+		    if let Err(e) = tracing_subscriber::fmt::try_init() {
+		        println!("error: {:?}", e);
+		    }
+
+		    let cfg = config::Config::from_env();
+		    let db_provider = database_provider::DatabaseProvider::new(&cfg);
+		    let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+
+			let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+			let cp = PostgresCrmProvider::new(&dp);
+
+			let business_id = uuid::Uuid::new_v4();
+
+			let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+			let tenant_id = tenant.tenant_id();
+
+			let business = crm_provider::Business {
+				business_id: business_id,
+				name: String::from("test_name"),
+				description: String::from("test_description")
+			};
+
+			if let Err(e) = cp.business_save(&tenant_id, &business).await {
+				error!("Error saving business record: {:?}", e);
+				assert!(false, "Failed to save business record");
+			}
+		}
 }
