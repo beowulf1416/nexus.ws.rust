@@ -69,7 +69,7 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
         tenant_id: &uuid::Uuid,
         business: &crm_provider::Business
     ) -> Result<(), &'static str> {
-    info!("business_save");
+    	info!("business_save");
 
 	    if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
 	        match sqlx::query("call crm.business_save($1, $2, $3, $4);")
@@ -91,7 +91,46 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
 	        error!("No Postgres pool found for 'main'");
 	        return Err("Unable to get pool for 'main'");
 	    }
+    }
 
+    async fn partners_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> Result<Vec<crm_provider::Partner>, &'static str> {
+   		info!("partners_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from crm.partners_fetch($1, $2);")
+                .bind(tenant_id)
+                .bind(filter)
+                .fetch_all(&pool)
+                .await {
+                    Ok(rows) => {
+                        let partners: Vec<crm_provider::Partner> = rows.iter().map(|r| {
+                            let partner_id: uuid::Uuid = r.get("partner_id");
+                            let name: String = r.get("name");
+                            let description: String = r.get("description");
+
+                            return crm_provider::Partner {
+                                partner_id,
+                                name,
+                                description
+                            };
+
+                        }).collect();
+
+                        return Ok(partners);
+                    }
+                    Err(e) => {
+                        error!("Error fetching partners: {:?}", e);
+                        return Err("Error fetching partners");
+                    }
+                }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
     }
 }
 
