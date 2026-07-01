@@ -99,7 +99,7 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::{ distr::Alphanumeric, Rng };
+    // use rand::{ distr::Alphanumeric, Rng };
 
     use tenants_provider::TenantsProvider;
     use crm_provider::CrmProvider;
@@ -140,33 +140,33 @@ mod tests {
 		}
 	}
 
-		#[actix_web::test]
-		async fn test_business_save() {
-		    if let Err(e) = tracing_subscriber::fmt::try_init() {
-		        println!("error: {:?}", e);
-		    }
+	#[actix_web::test]
+	async fn test_business_save() {
+	    if let Err(e) = tracing_subscriber::fmt::try_init() {
+	        println!("error: {:?}", e);
+	    }
 
-		    let cfg = config::Config::from_env();
-		    let db_provider = database_provider::DatabaseProvider::new(&cfg);
-		    let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+	    let cfg = config::Config::from_env();
+	    let db_provider = database_provider::DatabaseProvider::new(&cfg);
+	    let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
-			let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
-			let cp = PostgresCrmProvider::new(&dp);
+		let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+		let cp = PostgresCrmProvider::new(&dp);
 
-			let business_id = uuid::Uuid::new_v4();
+		let business_id = uuid::Uuid::new_v4();
 
-			let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
-			let tenant_id = tenant.tenant_id();
+		let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+		let tenant_id = tenant.tenant_id();
 
-			let business = crm_provider::Business {
-				business_id: business_id,
-				name: String::from("test_name"),
-				description: String::from("test_description")
-			};
+		let business = crm_provider::Business {
+			business_id: business_id,
+			name: String::from(format!("test_name_{}", rand::random::<u16>())),
+			description: String::from("test_description")
+		};
 
-			if let Err(e) = cp.business_save(&tenant_id, &business).await {
-				error!("Error saving business record: {:?}", e);
-				assert!(false, "Failed to save business record");
-			}
+		if let Err(e) = cp.business_save(&tenant_id, &business).await {
+			error!("Error saving business record: {:?}", e);
+			assert!(false, "Failed to save business record");
 		}
+	}
 }
