@@ -111,7 +111,7 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
                         let partners: Vec<crm_provider::Partner> = rows.iter().map(|r| {
                             let partner_id: uuid::Uuid = r.get("partner_id");
                             let active: bool = r.get("active");
-                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created_at");
                             let business_name: String = r.get("business_name");
                             let description: String = r.get("description");
                             let first_name: String = r.get("first_name");
