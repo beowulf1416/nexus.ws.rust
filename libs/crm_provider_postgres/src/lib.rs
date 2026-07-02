@@ -3,7 +3,7 @@
 use tracing::{
     info,
     error,
-    debug
+    // debug
 };
 
 use sqlx::Row;
@@ -31,31 +31,32 @@ impl PostgresCrmProvider {
 
 impl crm_provider::CrmProvider for PostgresCrmProvider {
 
-    async fn person_save(
+    async fn partner_save(
         &self,
         tenant_id: &uuid::Uuid,
-        person: &crm_provider::Person
+        partner: &crm_provider::Partner
     ) -> Result<(), &'static str> {
-        info!("person_save");
+        info!("partner_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call crm.person_save($1, $2, $3, $4, $5, $6, $7, $8);")
+            match sqlx::query("call crm.partner_save($1, $2, $3, $4, $5, $6, $7, $8, $9);")
                 .bind(tenant_id)
-                .bind(person.people_id.clone())
-                .bind(person.first_name.clone())
-                .bind(person.middle_name.clone())
-                .bind(person.last_name.clone())
-                .bind(person.prefix.clone())
-                .bind(person.suffix.clone())
-                .bind(person.gender.clone())
+                .bind(partner.partner_id.clone())
+                .bind(partner.business_name.clone())
+                .bind(partner.description.clone())
+                .bind(partner.first_name.clone())
+                .bind(partner.middle_name.clone())
+                .bind(partner.last_name.clone())
+                .bind(partner.prefix.clone())
+                .bind(partner.suffix.clone())
                 .execute(&pool)
                 .await {
                     Ok(_) => {
                         return Ok(());
                     }
                     Err(e) => {
-                        error!("Error saving person record: {:?}", e);
-                        return Err("Error saving person record");
+                        error!("Error saving partner record: {:?}", e);
+                        return Err("Error saving partner record");
                     }
                 }
         } else {
@@ -64,34 +65,34 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
         }
     }
 
-    async fn business_save(
-        &self,
-        tenant_id: &uuid::Uuid,
-        business: &crm_provider::Business
-    ) -> Result<(), &'static str> {
-    	info!("business_save");
+    // async fn business_save(
+    //     &self,
+    //     tenant_id: &uuid::Uuid,
+    //     business: &crm_provider::Business
+    // ) -> Result<(), &'static str> {
+    // 	info!("business_save");
 
-	    if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-	        match sqlx::query("call crm.business_save($1, $2, $3, $4);")
-	            .bind(tenant_id)
-	            .bind(business.business_id.clone())
-	            .bind(business.name.clone())
-	            .bind(business.description.clone())
-	            .execute(&pool)
-	            .await {
-	                Ok(_) => {
-	                    return Ok(());
-	                }
-	                Err(e) => {
-	                    error!("Error saving business record: {:?}", e);
-	                    return Err("Error saving business record");
-	                }
-	            }
-	    } else {
-	        error!("No Postgres pool found for 'main'");
-	        return Err("Unable to get pool for 'main'");
-	    }
-    }
+	   //  if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+	   //      match sqlx::query("call crm.business_save($1, $2, $3, $4);")
+	   //          .bind(tenant_id)
+	   //          .bind(business.business_id.clone())
+	   //          .bind(business.name.clone())
+	   //          .bind(business.description.clone())
+	   //          .execute(&pool)
+	   //          .await {
+	   //              Ok(_) => {
+	   //                  return Ok(());
+	   //              }
+	   //              Err(e) => {
+	   //                  error!("Error saving business record: {:?}", e);
+	   //                  return Err("Error saving business record");
+	   //              }
+	   //          }
+	   //  } else {
+	   //      error!("No Postgres pool found for 'main'");
+	   //      return Err("Unable to get pool for 'main'");
+	   //  }
+    // }
 
     async fn partners_fetch(
         &self,
@@ -109,13 +110,27 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
                     Ok(rows) => {
                         let partners: Vec<crm_provider::Partner> = rows.iter().map(|r| {
                             let partner_id: uuid::Uuid = r.get("partner_id");
-                            let name: String = r.get("name");
+                            let active: bool = r.get("active");
+                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                            let business_name: String = r.get("business_name");
                             let description: String = r.get("description");
+                            let first_name: String = r.get("first_name");
+                            let middle_name: String = r.get("middle_name");
+                            let last_name: String = r.get("last_name");
+                            let prefix: String = r.get("prefix");
+                            let suffix: String = r.get("suffix");
 
                             return crm_provider::Partner {
                                 partner_id,
-                                name,
-                                description
+                                active,
+                                created,
+                                business_name,
+                                description,
+                                first_name,
+                                middle_name,
+                                last_name,
+                                prefix,
+                                suffix,
                             };
 
                         }).collect();
@@ -156,56 +171,58 @@ mod tests {
 		let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 		let cp = PostgresCrmProvider::new(&dp);
 
-		let people_id = uuid::Uuid::new_v4();
+		let partner_id = uuid::Uuid::new_v4();
 
 		let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
 		let tenant_id = tenant.tenant_id();
 
-		let person = crm_provider::Person {
-			people_id: people_id,
+		let partner = crm_provider::Partner {
+			partner_id: partner_id,
 			active: true,
 			created: chrono::Utc::now(),
+			business_name: String::from(format!("test_name_{}", rand::random::<u16>())),
+			description: String::from("test_description"),
 			first_name: String::from("test_first"),
 			middle_name: String::from("test_middle"),
 			last_name: String::from("test_last"),
 			prefix: String::from("prefix"),
 			suffix: String::from("suffix"),
-			gender: 0,
+			// gender: 0,
 		};
 
-		if let Err(e) = cp.person_save(&tenant_id, &person).await {
-			error!("Error saving person record: {:?}", e);
-			assert!(false, "Failed to save person record");
+		if let Err(e) = cp.partner_save(&tenant_id, &partner).await {
+			error!("Error saving partner record: {:?}", e);
+			assert!(false, "Failed to save partner record");
 		}
 	}
 
-	#[actix_web::test]
-	async fn test_business_save() {
-	    if let Err(e) = tracing_subscriber::fmt::try_init() {
-	        println!("error: {:?}", e);
-	    }
+	// #[actix_web::test]
+	// async fn test_business_save() {
+	//     if let Err(e) = tracing_subscriber::fmt::try_init() {
+	//         println!("error: {:?}", e);
+	//     }
 
-	    let cfg = config::Config::from_env();
-	    let db_provider = database_provider::DatabaseProvider::new(&cfg);
-	    let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
+	//     let cfg = config::Config::from_env();
+	//     let db_provider = database_provider::DatabaseProvider::new(&cfg);
+	//     let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
-		let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
-		let cp = PostgresCrmProvider::new(&dp);
+	// 	let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+	// 	let cp = PostgresCrmProvider::new(&dp);
 
-		let business_id = uuid::Uuid::new_v4();
+	// 	let business_id = uuid::Uuid::new_v4();
 
-		let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
-		let tenant_id = tenant.tenant_id();
+	// 	let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
+	// 	let tenant_id = tenant.tenant_id();
 
-		let business = crm_provider::Business {
-			business_id: business_id,
-			name: String::from(format!("test_name_{}", rand::random::<u16>())),
-			description: String::from("test_description")
-		};
+	// 	let business = crm_provider::Business {
+	// 		business_id: business_id,
+	// 		name: String::from(format!("test_name_{}", rand::random::<u16>())),
+	// 		description: String::from("test_description")
+	// 	};
 
-		if let Err(e) = cp.business_save(&tenant_id, &business).await {
-			error!("Error saving business record: {:?}", e);
-			assert!(false, "Failed to save business record");
-		}
-	}
+	// 	if let Err(e) = cp.business_save(&tenant_id, &business).await {
+	// 		error!("Error saving business record: {:?}", e);
+	// 		assert!(false, "Failed to save business record");
+	// 	}
+	// }
 }

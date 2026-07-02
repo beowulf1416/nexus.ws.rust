@@ -39,15 +39,15 @@ use crm_provider::CrmProvider;
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
         .service(
-            web::resource("person/save")
+            web::resource("partner/save")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().guard(guard::Header("content-type", "application/json")).to(person_save_post))
+                .route(web::post().guard(guard::Header("content-type", "application/json")).to(partner_save_post))
         )
-        .service(
-            web::resource("business/save")
-                .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().guard(guard::Header("content-type", "application/json")).to(business_save_post))
-        )
+        // .service(
+        //     web::resource("business/save")
+        //         .route(web::method(http::Method::OPTIONS).to(default_option_response))
+        //         .route(web::post().guard(guard::Header("content-type", "application/json")).to(business_save_post))
+        // )
         .service(
             web::resource("partners/fetch")
                 .route(web::method(http::Method::OPTIONS).to(default_option_response))
@@ -58,9 +58,12 @@ pub fn config(cfg: &mut web::ServiceConfig) {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-struct PersonSavePostData {
+struct PartnerSavePostData {
 	tenant_id: uuid::Uuid,
-	person_id: uuid::Uuid,
+	partner_id: uuid::Uuid,
+
+	business_name: String,
+	description: String,
 
 	first_name: String,
     middle_name: String,
@@ -70,84 +73,89 @@ struct PersonSavePostData {
     gender: i16,
 }
 
-async fn person_save_post(
+async fn partner_save_post(
 	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
 	user: user::User,
-	params: web::Json<PersonSavePostData>,
+	params: web::Json<PartnerSavePostData>,
 ) -> impl Responder {
-	info!("person_save_post");
+	info!("partner_save_post");
 
 	let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
 
-	let person = crm_provider::Person {
-		people_id: params.person_id.clone(),
+	let partner = crm_provider::Partner {
+		partner_id: params.partner_id.clone(),
+
 		active: true,
 		created: chrono::Utc::now(),
+
+		business_name: params.business_name.clone(),
+		description: params.description.clone(),
+
 		first_name: params.first_name.clone(),
 		middle_name: params.middle_name.clone(),
 		last_name: params.last_name.clone(),
 		prefix: params.prefix.clone(),
 		suffix: params.suffix.clone(),
-		gender: params.gender.clone(),
+		// gender: params.gender.clone(),
 	};
 
-	match crm_provider.person_save(
+	match crm_provider.partner_save(
 		&params.tenant_id,
-		&person,
+		&partner,
 	).await {
 		Err(e) => {
-			error!("unable to save person record: {}", e);
+			error!("unable to save partner record: {}", e);
             return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("unable to save person record"));
+                .json(ApiResponse::error("unable to save partner record"));
 		}
 		Ok(_) => {
 			return HttpResponse::Ok().json(
-				ApiResponse::ok("successfully saved person record")
+				ApiResponse::ok("successfully saved partner record")
 			);
 		}
 	}
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
-struct BusinessSavePostData {
-	tenant_id: uuid::Uuid,
-	business_id: uuid::Uuid,
-	name: String,
-	description: String,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// struct BusinessSavePostData {
+// 	tenant_id: uuid::Uuid,
+// 	business_id: uuid::Uuid,
+// 	name: String,
+// 	description: String,
+// }
 
-async fn business_save_post(
-	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-	user: user::User,
-	params: web::Json<BusinessSavePostData>,
-) -> impl Responder {
-	info!("business_save_post");
+// async fn business_save_post(
+// 	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+// 	user: user::User,
+// 	params: web::Json<BusinessSavePostData>,
+// ) -> impl Responder {
+// 	info!("business_save_post");
 
-	let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+// 	let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
 
-	let business = crm_provider::Business {
-		business_id: params.business_id.clone(),
-		name: params.name.clone(),
-		description: params.description.clone(),
-	};
+// 	let business = crm_provider::Business {
+// 		business_id: params.business_id.clone(),
+// 		name: params.name.clone(),
+// 		description: params.description.clone(),
+// 	};
 
-	match crm_provider.business_save(
-		&params.tenant_id,
-		&business,
-	).await {
-		Err(e) => {
-			error!("unable to save business record: {}", e);
-        return HttpResponse::InternalServerError()
-            .json(ApiResponse::error("unable to save business record"));
-		}
-		Ok(_) => {
-			return HttpResponse::Ok().json(
-				ApiResponse::ok("successfully saved business record")
-			);
-		}
-	}
-}
+// 	match crm_provider.business_save(
+// 		&params.tenant_id,
+// 		&business,
+// 	).await {
+// 		Err(e) => {
+// 			error!("unable to save business record: {}", e);
+//         return HttpResponse::InternalServerError()
+//             .json(ApiResponse::error("unable to save business record"));
+// 		}
+// 		Ok(_) => {
+// 			return HttpResponse::Ok().json(
+// 				ApiResponse::ok("successfully saved business record")
+// 			);
+// 		}
+// 	}
+// }
 
 
 #[derive(Debug, Serialize, Deserialize)]
