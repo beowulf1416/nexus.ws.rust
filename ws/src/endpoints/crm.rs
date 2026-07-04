@@ -140,13 +140,11 @@ async fn partners_fetch_post(
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 struct PartnersSetActivePostData {
     partner_ids: Vec<uuid::Uuid>,
-    active: bool
+    active: bool,
 }
-
 
 async fn partners_set_active_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
@@ -156,17 +154,18 @@ async fn partners_set_active_post(
     info!("partners_set_active_post");
 
     let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
-    match crm_provider.partners_set_active(
-        &params.partner_ids,
-        params.active
-    ).await {
+    match crm_provider
+        .partners_set_active(&params.partner_ids, params.active)
+        .await
+    {
         Err(e) => {
             error!("unable to set partner active state: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to save partner record"));
         }
         Ok(_) => {
-            return HttpResponse::Ok().json(ApiResponse::ok("successfully saved partner active state"));
+            return HttpResponse::Ok()
+                .json(ApiResponse::ok("successfully saved partner active state"));
         }
     }
-)
+}
