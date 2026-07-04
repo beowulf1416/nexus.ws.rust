@@ -28,11 +28,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .to(partner_save_post),
             ),
     )
-    // .service(
-    //     web::resource("business/save")
-    //         .route(web::method(http::Method::OPTIONS).to(default_option_response))
-    //         .route(web::post().guard(guard::Header("content-type", "application/json")).to(business_save_post))
-    // )
     .service(
         web::resource("partners/fetch")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
@@ -40,6 +35,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::post()
                     .guard(guard::Header("content-type", "application/json"))
                     .to(partners_fetch_post),
+            ),
+    )
+    .service(
+        web::resource("partners/set/active")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(partners_set_active_post),
             ),
     );
 }
@@ -98,46 +102,6 @@ async fn partner_save_post(
     }
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// struct BusinessSavePostData {
-// 	tenant_id: uuid::Uuid,
-// 	business_id: uuid::Uuid,
-// 	name: String,
-// 	description: String,
-// }
-
-// async fn business_save_post(
-// 	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-// 	user: user::User,
-// 	params: web::Json<BusinessSavePostData>,
-// ) -> impl Responder {
-// 	info!("business_save_post");
-
-// 	let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
-
-// 	let business = crm_provider::Business {
-// 		business_id: params.business_id.clone(),
-// 		name: params.name.clone(),
-// 		description: params.description.clone(),
-// 	};
-
-// 	match crm_provider.business_save(
-// 		&params.tenant_id,
-// 		&business,
-// 	).await {
-// 		Err(e) => {
-// 			error!("unable to save business record: {}", e);
-//         return HttpResponse::InternalServerError()
-//             .json(ApiResponse::error("unable to save business record"));
-// 		}
-// 		Ok(_) => {
-// 			return HttpResponse::Ok().json(
-// 				ApiResponse::ok("successfully saved business record")
-// 			);
-// 		}
-// 	}
-// }
-
 #[derive(Debug, Serialize, Deserialize)]
 struct PartnersFetchPostData {
     tenant_id: uuid::Uuid,
@@ -175,3 +139,34 @@ async fn partners_fetch_post(
         }
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PartnersSetActivePostData {
+    partner_ids: Vec<uuid::Uuid>,
+    active: bool
+}
+
+
+async fn partners_set_active_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<PartnersSetActivePostData>,
+) -> impl Responder {
+    info!("partners_set_active_post");
+
+    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+    match crm_provider.partners_set_active(
+        &params.partner_ids,
+        params.active
+    ).await {
+        Err(e) => {
+            error!("unable to set partner active state: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to save partner record"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok().json(ApiResponse::ok("successfully saved partner active state"));
+        }
+    }
+)
