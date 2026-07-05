@@ -204,7 +204,7 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
 
     async fn fetch_uoms_by_dimension_id(
         &self,
-        dimension_id: i16,
+        dimension_id: &i16,
     ) -> Result<Vec<commons_provider::Uom>, &'static str> {
         info!("fetch_uoms_by_dimension_id");
 
@@ -225,7 +225,7 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
 
                             return commons_provider::Uom {
                                 id: uom_id,
-                                dimension_id,
+                                dimension_id: dimension_id.clone(),
                                 name,
                                 symbol,
                             };
@@ -289,7 +289,7 @@ mod tests {
             assert!(false, "unable to fetch uoms");
         }
 
-        if let Err(e) = cp.fetch_uoms_by_dimension_id(1).await {
+        if let Err(e) = cp.fetch_uoms_by_dimension_id(&1).await {
             error!(e);
             assert!(false, "unable to fetch uoms by dimension id");
         }

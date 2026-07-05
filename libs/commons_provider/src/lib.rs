@@ -50,6 +50,6 @@ pub trait CommonsProvider {
 
     fn fetch_uoms_by_dimension_id(
         &self,
-        dimension_id: i16,
+        dimension_id: &i16,
     ) -> impl Future<Output = Result<Vec<Uom>, &'static str>> + Send;
 }
