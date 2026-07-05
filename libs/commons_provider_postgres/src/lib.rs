@@ -127,6 +127,123 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn fetch_dimensions(&self) -> Result<Vec<commons_provider::Dimension>, &'static str> {
+        info!("fetch_dimensions");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from common.dimensions_fetch_all();")
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let dimensions: Vec<commons_provider::Dimension> = rows
+                        .iter()
+                        .map(|r| {
+                            let dimension_id: i16 = r.get("dimension_id");
+                            let name: String = r.get("name");
+
+                            return commons_provider::Dimension {
+                                id: dimension_id,
+                                name,
+                            };
+                        })
+                        .collect();
+
+                    return Ok(dimensions);
+                }
+                Err(e) => {
+                    error!("Error fetching dimensions: {:?}", e);
+                    return Err("Error fetching dimensions");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn fetch_uoms(&self) -> Result<Vec<commons_provider::Uom>, &'static str> {
+        info!("fetch_uoms");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from common.uom_fetch_all();")
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let uoms: Vec<commons_provider::Uom> = rows
+                        .iter()
+                        .map(|r| {
+                            let uom_id: i32 = r.get("uom_id");
+                            let dimension_id: i16 = r.get("dimension_id");
+                            let name: String = r.get("name");
+                            let symbol: Option<String> = r.get("symbol");
+
+                            return commons_provider::Uom {
+                                id: uom_id,
+                                dimension_id,
+                                name,
+                                symbol,
+                            };
+                        })
+                        .collect();
+
+                    return Ok(uoms);
+                }
+                Err(e) => {
+                    error!("Error fetching uoms: {:?}", e);
+                    return Err("Error fetching uoms");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn fetch_uoms_by_dimension_id(
+        &self,
+        dimension_id: i16,
+    ) -> Result<Vec<commons_provider::Uom>, &'static str> {
+        info!("fetch_uoms_by_dimension_id");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from common.uom_fetch_all_by_dimension_id($1);")
+                .bind(dimension_id)
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let uoms: Vec<commons_provider::Uom> = rows
+                        .iter()
+                        .map(|r| {
+                            let uom_id: i32 = r.get("uom_id");
+                            // let dimension_id: i16 = r.get("dimension_id");
+                            let name: String = r.get("name");
+                            let symbol: Option<String> = r.get("symbol");
+
+                            return commons_provider::Uom {
+                                id: uom_id,
+                                dimension_id,
+                                name,
+                                symbol,
+                            };
+                        })
+                        .collect();
+
+                    return Ok(uoms);
+                }
+                Err(e) => {
+                    error!("Error fetching uoms: {:?}", e);
+                    return Err("Error fetching uoms");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +277,21 @@ mod tests {
         if let Err(e) = cp.fetch_genders().await {
             error!(e);
             assert!(false, "unable to fetch genders");
+        }
+
+        if let Err(e) = cp.fetch_dimensions().await {
+            error!(e);
+            assert!(false, "unable to fetch dimensions");
+        }
+
+        if let Err(e) = cp.fetch_uoms().await {
+            error!(e);
+            assert!(false, "unable to fetch uoms");
+        }
+
+        if let Err(e) = cp.fetch_uoms_by_dimension_id(1).await {
+            error!(e);
+            assert!(false, "unable to fetch uoms by dimension id");
         }
     }
 }
