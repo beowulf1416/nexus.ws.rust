@@ -26,4 +26,4 @@ members = [
     "libs/file_store",
     "libs/file_store_local",
     "ws"
-, "libs/crm_provider", "libs/crm_provider_postgres"]
+, "libs/crm_provider", "libs/crm_provider_postgres", "libs/acctg_provider", "libs/acctg_provider_postgres"]

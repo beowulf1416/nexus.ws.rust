@@ -1,0 +1,16 @@
+[package]
+name = "acctg_provider"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "*", features = ["v4"] }
+chrono = { version = "*", features = ["serde"] }
+serde = "*"
+serde_json = "*"
+
+rust_decimal = { version = "*", features = ["serde"] }
+
+
+# projects
+database_provider = { path = "../database_provider" }
