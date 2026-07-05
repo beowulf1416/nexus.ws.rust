@@ -58,13 +58,13 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         info!("invoice_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6);")
+            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5);")
                 .bind(tenant_id)
                 .bind(&invoice.invoice_id)
                 .bind(&invoice.invoice_type_id)
                 .bind(&invoice.description)
                 .bind(&invoice.due_date)
-                .bind(&invoice.currency_id)
+                // .bind(&invoice.currency_id)
                 .execute(&pool)
                 .await
             {

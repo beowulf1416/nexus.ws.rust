@@ -28,6 +28,8 @@ actix-multipart = "*"
 futures = "*"
 regex = "*"
 
+rust_decimal = { version = "*", features = ["serde"] }
+
 
 # projects
 config = { path = "../libs/config" }

@@ -16,7 +16,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use std::{collections::HashMap, hash::Hash};
 
-use actix_web::{App, HttpServer, web};
+use actix_web::{App, HttpResponse, HttpServer, error, web};
 
 use database_provider::DatabaseProvider;
 
@@ -54,6 +54,19 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(Arc::new(mailer::Mailer::new())))
             .app_data(web::Data::new(Arc::new(db_provider.clone())))
             .app_data(web::Data::new(Arc::new(token_generator.clone())))
+            .app_data(web::JsonConfig::default().error_handler(|err, _req| {
+                error!("JSON PARSE ERROR: {}", err);
+
+                let error_details = err.to_string();
+
+                error::InternalError::from_response(
+                    err,
+                    HttpResponse::BadRequest().json(
+                        serde_json::json!({ "error": "Invalid JSON", "details": error_details }),
+                    ),
+                )
+                .into()
+            }))
             .service(web::scope("/common").configure(crate::endpoints::common::config))
             .service(web::scope("/session").configure(crate::endpoints::session::config))
             .service(
@@ -67,7 +80,9 @@ async fn main() -> std::io::Result<()> {
             .service(web::scope("/admin/users").configure(crate::endpoints::admin::users::config))
             // .service(web::scope("/documents").configure(crate::endpoints::documents::config))
             .service(web::scope("/file").configure(crate::endpoints::file::config))
-            .service(web::scope("/crm").configure(crate::endpoints::acctg::invoice::config))
+            .service(
+                web::scope("/acctg/invoices").configure(crate::endpoints::acctg::invoice::config),
+            )
             .service(web::scope("/crm").configure(crate::endpoints::crm::config))
             .service(
                 web::scope("/inv/warehouses")

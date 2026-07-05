@@ -1,24 +1,26 @@
 #![allow(clippy::needless_return)]
 
 use rust_decimal::Decimal;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct InvoiceType {
     pub id: i32,
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct InvoiceItem {
     pub item_id: uuid::Uuid,
     pub description: String,
     pub quantity: i32,
+    pub uom_id: i32,
     pub unit_price: Decimal,
     pub total: Decimal,
+    pub currency_id: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Invoice {
     pub invoice_id: uuid::Uuid,
     pub invoice_type_id: i32,
@@ -28,10 +30,9 @@ pub struct Invoice {
     pub created_at: chrono::DateTime<chrono::Utc>,
 
     pub due_date: Option<chrono::DateTime<chrono::Utc>>,
-    pub description: Option<String>,
+    pub description: String,
 
-    pub currency_id: i32,
-
+    // pub currency_id: i32,
     pub items: Vec<InvoiceItem>,
 }
 
