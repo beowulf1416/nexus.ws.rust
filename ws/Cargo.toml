@@ -68,3 +68,6 @@ inv_provider_postgres = { path = "../libs/inv_provider_postgres" }
 
 crm_provider = { path = "../libs/crm_provider" }
 crm_provider_postgres = { path = "../libs/crm_provider_postgres" }
+
+acctg_provider = { path = "../libs/acctg_provider" }
+acctg_provider_postgres = { path = "../libs/acctg_provider_postgres" }

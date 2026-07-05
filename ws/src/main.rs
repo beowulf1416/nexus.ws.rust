@@ -4,34 +4,21 @@
 // extern crate tracing;
 
 mod classes;
+mod endpoints;
 mod extractors;
 mod guards;
 mod middleware;
-mod endpoints;
 
-use tracing::{
-    info,
-    error,
-    debug
-};
+use tracing::{debug, error, info};
 use tracing_subscriber::FmtSubscriber;
 
-use std::{collections::HashMap, hash::Hash};
-use std::sync::Arc;
 use serde::Deserialize;
+use std::sync::Arc;
+use std::{collections::HashMap, hash::Hash};
 
-use actix_web::{
-    web,
-    App,
-    HttpServer
-};
-
+use actix_web::{App, HttpServer, web};
 
 use database_provider::DatabaseProvider;
-
-
-
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -48,7 +35,6 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting up ...");
 
-
     let cfg = config::Config::from_env();
     debug!("config: {:?}", cfg);
 
@@ -58,37 +44,40 @@ async fn main() -> std::io::Result<()> {
 
     let mut http_server = HttpServer::new(move || {
         let app = App::new()
-            .wrap(actix_web::middleware::from_fn(crate::middleware::cors::cors_middleware))
-            .wrap(actix_web::middleware::from_fn(crate::middleware::auth::auth_middleware))
-
+            .wrap(actix_web::middleware::from_fn(
+                crate::middleware::cors::cors_middleware,
+            ))
+            .wrap(actix_web::middleware::from_fn(
+                crate::middleware::auth::auth_middleware,
+            ))
             .app_data(web::Data::new(Arc::new(cfg.clone())))
             .app_data(web::Data::new(Arc::new(mailer::Mailer::new())))
             .app_data(web::Data::new(Arc::new(db_provider.clone())))
             .app_data(web::Data::new(Arc::new(token_generator.clone())))
-
-
             .service(web::scope("/common").configure(crate::endpoints::common::config))
             .service(web::scope("/session").configure(crate::endpoints::session::config))
-            .service(web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config))
+            .service(
+                web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config),
+            )
             .service(web::scope("/users").configure(crate::endpoints::user::users::config))
-
             .service(web::scope("/permissions").configure(crate::endpoints::permissions::config))
-            .service(web::scope("/admin/tenants").configure(crate::endpoints::admin::tenants::config))
+            .service(
+                web::scope("/admin/tenants").configure(crate::endpoints::admin::tenants::config),
+            )
             .service(web::scope("/admin/users").configure(crate::endpoints::admin::users::config))
-
             // .service(web::scope("/documents").configure(crate::endpoints::documents::config))
             .service(web::scope("/file").configure(crate::endpoints::file::config))
-
+            .service(web::scope("/crm").configure(crate::endpoints::acctg::invoice::config))
             .service(web::scope("/crm").configure(crate::endpoints::crm::config))
-
-            .service(web::scope("/inv/warehouses").configure(crate::endpoints::inventory::warehouse::config))
-            .service(web::scope("/inv/items").configure(crate::endpoints::inventory::item::config))
-        ;
+            .service(
+                web::scope("/inv/warehouses")
+                    .configure(crate::endpoints::inventory::warehouse::config),
+            )
+            .service(web::scope("/inv/items").configure(crate::endpoints::inventory::item::config));
 
         return app;
     })
-    .workers(2)
-    ;
+    .workers(2);
 
     http_server = http_server.bind("localhost:8080")?;
 

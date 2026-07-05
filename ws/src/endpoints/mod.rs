@@ -1,50 +1,34 @@
 pub mod common;
-pub mod session;
-pub mod permissions;
-pub mod user;
 pub mod file;
+pub mod permissions;
+pub mod session;
+pub mod user;
 // pub mod documents;
-pub mod crm;
+pub mod acctg;
 pub mod admin;
+pub mod crm;
 pub mod inventory;
 
+use tracing::info;
 
-use tracing::{
-    info
-};
-
-use serde::{
-    Serialize,
-    Deserialize
-};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use actix_web::{
-    HttpResponse,
-    Responder
-};
-
-
-
+use actix_web::{HttpResponse, Responder};
 
 #[derive(Serialize, Deserialize)]
 pub struct ApiResponse {
     success: bool,
     message: &'static str,
-    data: Option<Value>
+    data: Option<Value>,
 }
 
-
 impl ApiResponse {
-    pub fn new(
-        success: bool,
-        message: &'static str,
-        data: Option<Value>
-    ) -> Self {
+    pub fn new(success: bool, message: &'static str, data: Option<Value>) -> Self {
         return Self {
             success,
             message,
-            data: data.clone()
+            data: data.clone(),
         };
     }
 
@@ -52,7 +36,7 @@ impl ApiResponse {
         return Self {
             success: true,
             message,
-            data: None
+            data: None,
         };
     }
 
@@ -60,11 +44,10 @@ impl ApiResponse {
         return Self {
             success: false,
             message,
-            data: None
+            data: None,
         };
     }
 }
-
 
 pub async fn default_option_response() -> impl Responder {
     info!("default_option_response");
