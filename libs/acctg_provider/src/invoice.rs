@@ -42,6 +42,7 @@ pub trait InvoiceProvider {
 
     fn invoice_save(
         &self,
+        tenant_id: &uuid::Uuid,
         invoice: &Invoice,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

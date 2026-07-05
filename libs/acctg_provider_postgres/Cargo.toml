@@ -5,8 +5,9 @@ edition = "2024"
 
 [dependencies]
 tracing = "*"
-sqlx = { version = "*", features = ["postgres", "uuid"] }
-uuid = { version = "*", features = ["v4"] }
+sqlx = { version = "*", features = ["postgres", "uuid", "chrono"] }
+uuid = { version = "*", features = ["v4", "serde"] }
+chrono = { version = "*", features = ["serde"] }
 rust_decimal = { version = "*", features = ["serde"] }
 
 # projects
@@ -20,3 +21,5 @@ rand = "*"
 actix-web = "*"
 
 config = { path = "../config" }
+tenants_provider = { path = "../tenants_provider" }
+tenants_provider_postgres = { path = "../tenants_provider_postgres" }
