@@ -30,6 +30,24 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             ),
     )
     .service(
+        web::resource("fetch")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(invoices_fetch_post),
+            ),
+    )
+    .service(
+        web::resource("fetch/id")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(invoice_fetch_post),
+            ),
+    )
+    .service(
         web::resource("save")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(
@@ -60,6 +78,75 @@ async fn invoice_types_fetch_post(
                 "successfully fetched invoice types",
                 Some(json!({
                     "invoice_types": invoice_types
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct InvoicesFetchPostData {
+    filter: String,
+}
+
+async fn invoices_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<InvoicesFetchPostData>,
+) -> impl Responder {
+    info!("invoices_fetch_post");
+
+    let ipp = acctg_provider_postgres::invoice::InvoiceProviderPostgres::new(&dp);
+
+    let tenant_id = user.tenant().tenant_id();
+
+    match ipp
+        .invoices_fetch(&tenant_id, format!("%{}%", &params.filter).as_str())
+        .await
+    {
+        Err(e) => {
+            error!("unable to fetch invoices: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch invoices"));
+        }
+        Ok(invoices) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched invoices",
+                Some(json!({
+                    "invoices": invoices
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct InvoiceFetchPostData {
+    invoice_id: uuid::Uuid,
+}
+
+async fn invoice_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<InvoiceFetchPostData>,
+) -> impl Responder {
+    info!("invoices_fetch_post");
+
+    let ipp = acctg_provider_postgres::invoice::InvoiceProviderPostgres::new(&dp);
+
+    match ipp.invoice_fetch(&params.invoice_id).await {
+        Err(e) => {
+            error!("unable to fetch invoice types: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch invoice types"));
+        }
+        Ok(invoice) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched invoice",
+                Some(json!({
+                    "invoice": invoice
                 })),
             ));
         }
@@ -99,7 +186,7 @@ async fn invoice_save_post(
     let invoice = Invoice {
         invoice_id: params.invoice_id,
         invoice_type_id: params.invoice_type_id,
-        invoice_id_seq: String::from(""),
+        invoice_id_seq: 0,
         active: true,
         created_at: chrono::Utc::now(),
         due_date: params.due_date,

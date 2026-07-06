@@ -24,7 +24,7 @@ pub struct InvoiceItem {
 pub struct Invoice {
     pub invoice_id: uuid::Uuid,
     pub invoice_type_id: i32,
-    pub invoice_id_seq: String,
+    pub invoice_id_seq: i32,
 
     pub active: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -40,6 +40,17 @@ pub trait InvoiceProvider {
     fn invoice_types_fetch(
         &self,
     ) -> impl Future<Output = Result<Vec<InvoiceType>, &'static str>> + Send;
+
+    fn invoices_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> impl Future<Output = Result<Vec<Invoice>, &'static str>> + Send;
+
+    fn invoice_fetch(
+        &self,
+        invoice_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Invoice, &'static str>> + Send;
 
     fn invoice_save(
         &self,

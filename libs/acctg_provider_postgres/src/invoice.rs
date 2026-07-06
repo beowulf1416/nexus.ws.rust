@@ -50,6 +50,98 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         }
     }
 
+    async fn invoices_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> Result<Vec<Invoice>, &'static str> {
+        info!("invoices_fetch");
+        // debug!("tenant_id: {:?}, filter: {}", tenant_id, filter);
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.invoices_fetch($1,$2);")
+                .bind(tenant_id)
+                .bind(filter)
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let invoices: Vec<Invoice> = rows
+                        .iter()
+                        .map(|r| {
+                            let invoice_id: uuid::Uuid = r.get("invoice_id");
+                            let invoice_type_id: i32 = r.get("invoice_type_id");
+                            let invoice_id_seq: i32 = r.get("invoice_id_seq");
+                            let active: bool = r.get("active");
+                            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_ts");
+                            let due_date: Option<chrono::DateTime<chrono::Utc>> =
+                                r.get("due_date_ts");
+                            let description: String = r.get("description");
+                            return Invoice {
+                                invoice_id: invoice_id,
+                                invoice_type_id: invoice_type_id,
+                                invoice_id_seq: invoice_id_seq,
+                                active: active,
+                                created_at: created_at,
+                                due_date: due_date,
+                                description: description,
+                                items: Vec::new(),
+                            };
+                        })
+                        .collect();
+
+                    return Ok(invoices);
+                }
+                Err(e) => {
+                    error!("Error fetching invoices: {:?}", e);
+                    return Err("Error fetching invoices");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn invoice_fetch(&self, invoice_id: &uuid::Uuid) -> Result<Invoice, &'static str> {
+        info!("invoice_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.invoice_fetch($1);")
+                .bind(invoice_id)
+                .fetch_one(&pool)
+                .await
+            {
+                Ok(row) => {
+                    let invoice_id: uuid::Uuid = row.get("invoice_id");
+                    let invoice_type_id: i32 = row.get("invoice_type_id");
+                    let invoice_id_seq: i32 = row.get("invoice_id_seq");
+                    let active: bool = row.get("active");
+                    let created_at: chrono::DateTime<chrono::Utc> = row.get("created_ts");
+                    let due_date: Option<chrono::DateTime<chrono::Utc>> = row.get("due_date_ts");
+                    let description: String = row.get("description");
+                    return Ok(Invoice {
+                        invoice_id: invoice_id,
+                        invoice_type_id: invoice_type_id,
+                        invoice_id_seq: invoice_id_seq,
+                        active: active,
+                        created_at: created_at,
+                        due_date: due_date,
+                        description: description,
+                        items: Vec::new(),
+                    });
+                }
+                Err(e) => {
+                    error!("Error fetching invoices: {:?}", e);
+                    return Err("Error fetching invoices");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn invoice_save(
         &self,
         tenant_id: &uuid::Uuid,
@@ -120,10 +212,9 @@ mod tests {
             invoice_id: invoice_id,
             invoice_type_id: 1,
             due_date: Some(due_date.to_utc()),
-            description: Some(String::from("test invoice 1")),
-            currency_id: 1,
+            description: String::from("test invoice 1"),
 
-            invoice_id_seq: String::from(""),
+            invoice_id_seq: 0,
             created_at: today.to_utc(),
             active: true,
             items: Vec::new(),
@@ -132,6 +223,16 @@ mod tests {
         if let Err(e) = ipp.invoice_save(&tenant_id, &invoice).await {
             error!(e);
             assert!(false, "unable to save invoice");
+        }
+
+        if let Err(e) = ipp.invoice_fetch(&invoice_id).await {
+            error!(e);
+            assert!(false, "unable to fetch invoice");
+        }
+
+        if let Err(e) = ipp.invoices_fetch(&tenant_id, &"%").await {
+            error!(e);
+            assert!(false, "unable to fetch invoices");
         }
     }
 }
