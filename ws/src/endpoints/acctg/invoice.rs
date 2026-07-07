@@ -153,16 +153,16 @@ async fn invoice_fetch_post(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct InvoiceItemSavePostData {
-    item_id: uuid::Uuid,
-    description: String,
-    quantity: i32,
-    uom_id: i32,
-    unit_price: Decimal,
-    total: Decimal,
-    currency_id: i32,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// struct InvoiceItemSavePostData {
+//     item_id: uuid::Uuid,
+//     description: String,
+//     quantity: Decimal,
+//     // uom_id: i32,
+//     unit_price: Decimal,
+//     total: Decimal,
+//     currency_id: i32,
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct InvoiceSavePostData {
@@ -171,7 +171,7 @@ struct InvoiceSavePostData {
     due_date: Option<chrono::DateTime<chrono::Utc>>,
     description: String,
     // currency_id: i32,
-    items: Vec<InvoiceItemSavePostData>,
+    items: Vec<InvoiceItem>,
 }
 
 async fn invoice_save_post(
@@ -192,30 +192,48 @@ async fn invoice_save_post(
         due_date: params.due_date,
         description: params.description.clone(),
         // currency_id: params.currency_id,
-        items: params
-            .items
-            .clone()
-            .into_iter()
-            .map(|i| InvoiceItem {
-                item_id: i.item_id,
-                description: i.description.clone(),
-                quantity: i.quantity,
-                uom_id: i.uom_id,
-                unit_price: i.unit_price,
-                total: i.total,
-                currency_id: i.currency_id,
-            })
-            .collect(),
+        // items: params
+        //     .items
+        //     .clone()
+        //     .into_iter()
+        //     .map(|i| InvoiceItem {
+        //         item_id: i.item_id,
+        //         description: i.description.clone(),
+        //         quantity: i.quantity,
+        //         // uom_id: i.uom_id,
+        //         unit_price: i.unit_price,
+        //         total: i.total,
+        //         currency_id: i.currency_id,
+        //     })
+        //     .collect(),
+        items: params.items.clone(),
     };
 
-    match ipp.invoice_save(&user.tenant().tenant_id(), &invoice).await {
-        Err(e) => {
-            error!("unable to save invoice: {}", e);
-            return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("unable to save invoice"));
-        }
-        Ok(_) => {
-            return HttpResponse::Ok().json(ApiResponse::ok("todo"));
-        }
+    // match ipp.invoice_save(&user.tenant().tenant_id(), &invoice).await {
+    //     Err(e) => {
+    //         error!("unable to save invoice: {}", e);
+    //         return HttpResponse::InternalServerError()
+    //             .json(ApiResponse::error("unable to save invoice"));
+    //     }
+    //     Ok(_) => {
+    //         return HttpResponse::Ok().json(ApiResponse::ok("todo"));
+    //     }
+    // }
+
+    if let Err(e) = ipp.invoice_save(&user.tenant().tenant_id(), &invoice).await {
+        error!("unable to save invoice: {}", e);
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse::error("unable to save invoice"));
     }
+
+    // if let Err(e) = ipp
+    //     .invoice_items_save(&params.invoice_id, &params.items)
+    //     .await
+    // {
+    //     error!("unable to save invoice items: {}", e);
+    //     return HttpResponse::InternalServerError()
+    //         .json(ApiResponse::error("unable to save invoice items"));
+    // }
+
+    return HttpResponse::Ok().json(ApiResponse::ok("successfully saved invoice"));
 }

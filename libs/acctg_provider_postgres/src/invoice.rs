@@ -165,13 +165,27 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         info!("invoice_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5);")
+            let derived_items = invoice
+                .items
+                .iter()
+                .map(|item| InvoiceItemDerived {
+                    item_id: item.item_id,
+                    description: item.description.clone(),
+                    quantity: item.quantity,
+                    // uom_id: item.uom_id,
+                    unit_price: item.unit_price,
+                    // total: item.total,
+                    currency_id: item.currency_id,
+                })
+                .collect::<Vec<InvoiceItemDerived>>();
+
+            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6);")
                 .bind(tenant_id)
                 .bind(&invoice.invoice_id)
                 .bind(&invoice.invoice_type_id)
                 .bind(&invoice.description)
                 .bind(&invoice.due_date)
-                // .bind(&invoice.currency_id)
+                .bind(&derived_items)
                 .execute(&pool)
                 .await
             {
@@ -189,46 +203,46 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         }
     }
 
-    async fn invoice_items_save(
-        &self,
-        invoice_id: &uuid::Uuid,
-        items: &Vec<InvoiceItem>,
-    ) -> Result<(), &'static str> {
-        info!("invoice_items_save");
+    // async fn invoice_items_save(
+    //     &self,
+    //     invoice_id: &uuid::Uuid,
+    //     items: &Vec<InvoiceItem>,
+    // ) -> Result<(), &'static str> {
+    //     info!("invoice_items_save");
 
-        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            let derived_items = items
-                .iter()
-                .map(|item| InvoiceItemDerived {
-                    item_id: item.item_id,
-                    description: item.description.clone(),
-                    quantity: item.quantity,
-                    // uom_id: item.uom_id,
-                    unit_price: item.unit_price,
-                    // total: item.total,
-                    currency_id: item.currency_id,
-                })
-                .collect::<Vec<InvoiceItemDerived>>();
+    //     if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+    //         let derived_items = items
+    //             .iter()
+    //             .map(|item| InvoiceItemDerived {
+    //                 item_id: item.item_id,
+    //                 description: item.description.clone(),
+    //                 quantity: item.quantity,
+    //                 // uom_id: item.uom_id,
+    //                 unit_price: item.unit_price,
+    //                 // total: item.total,
+    //                 currency_id: item.currency_id,
+    //             })
+    //             .collect::<Vec<InvoiceItemDerived>>();
 
-            match sqlx::query("call acctg.invoice_items_save($1,$2);")
-                .bind(&invoice_id)
-                .bind(&derived_items)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => {
-                    return Ok(());
-                }
-                Err(e) => {
-                    error!("Error saving invoice items: {:?}", e);
-                    return Err("Error saving invoice items");
-                }
-            }
-        } else {
-            error!("No Postgres pool found for 'main'");
-            return Err("Unable to get pool for 'main'");
-        }
-    }
+    //         match sqlx::query("call acctg.invoice_items_save($1,$2);")
+    //             .bind(&invoice_id)
+    //             .bind(&derived_items)
+    //             .execute(&pool)
+    //             .await
+    //         {
+    //             Ok(_) => {
+    //                 return Ok(());
+    //             }
+    //             Err(e) => {
+    //                 error!("Error saving invoice items: {:?}", e);
+    //                 return Err("Error saving invoice items");
+    //             }
+    //         }
+    //     } else {
+    //         error!("No Postgres pool found for 'main'");
+    //         return Err("Unable to get pool for 'main'");
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -273,7 +287,26 @@ mod tests {
             invoice_id_seq: 0,
             created_at: today.to_utc(),
             active: true,
-            items: Vec::new(),
+            items: vec![
+                InvoiceItem {
+                    item_id: uuid::Uuid::new_v4(),
+                    description: String::from("test item 1"),
+                    quantity: Decimal::new(15, 1),
+                    // uom_id: 1,
+                    unit_price: Decimal::new(100, 2),
+                    total: Decimal::new(100, 2),
+                    currency_id: 1,
+                },
+                InvoiceItem {
+                    item_id: uuid::Uuid::new_v4(),
+                    description: String::from("test item 2"),
+                    quantity: Decimal::new(25, 1),
+                    // uom_id: 1,
+                    unit_price: Decimal::new(200, 2),
+                    total: Decimal::new(400, 2),
+                    currency_id: 1,
+                },
+            ],
         };
 
         if let Err(e) = ipp.invoice_save(&tenant_id, &invoice).await {
@@ -296,7 +329,7 @@ mod tests {
                 item_id: uuid::Uuid::new_v4(),
                 description: String::from("test item 1"),
                 quantity: Decimal::new(15, 1),
-                uom_id: 1,
+                // uom_id: 1,
                 unit_price: Decimal::new(100, 2),
                 total: Decimal::new(100, 2),
                 currency_id: 1,
@@ -305,15 +338,15 @@ mod tests {
                 item_id: uuid::Uuid::new_v4(),
                 description: String::from("test item 2"),
                 quantity: Decimal::new(25, 1),
-                uom_id: 1,
+                // uom_id: 1,
                 unit_price: Decimal::new(200, 2),
                 total: Decimal::new(400, 2),
                 currency_id: 1,
             },
         ];
-        if let Err(e) = ipp.invoice_items_save(&invoice_id, &invoice_items).await {
-            error!(e);
-            assert!(false, "unable to save invoice items");
-        }
+        // if let Err(e) = ipp.invoice_items_save(&invoice_id, &invoice_items).await {
+        //     error!(e);
+        //     assert!(false, "unable to save invoice items");
+        // }
     }
 }

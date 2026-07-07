@@ -9,12 +9,12 @@ pub struct InvoiceType {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InvoiceItem {
     pub item_id: uuid::Uuid,
     pub description: String,
     pub quantity: Decimal,
-    pub uom_id: i32,
+    // pub uom_id: i32,
     pub unit_price: Decimal,
     pub total: Decimal,
     pub currency_id: i32,
@@ -58,9 +58,9 @@ pub trait InvoiceProvider {
         invoice: &Invoice,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
-    fn invoice_items_save(
-        &self,
-        invoice_id: &uuid::Uuid,
-        items: &Vec<InvoiceItem>,
-    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+    // fn invoice_items_save(
+    //     &self,
+    //     invoice_id: &uuid::Uuid,
+    //     items: &Vec<InvoiceItem>,
+    // ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
