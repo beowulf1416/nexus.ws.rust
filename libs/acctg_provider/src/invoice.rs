@@ -13,7 +13,7 @@ pub struct InvoiceType {
 pub struct InvoiceItem {
     pub item_id: uuid::Uuid,
     pub description: String,
-    pub quantity: i32,
+    pub quantity: Decimal,
     pub uom_id: i32,
     pub unit_price: Decimal,
     pub total: Decimal,
@@ -56,5 +56,11 @@ pub trait InvoiceProvider {
         &self,
         tenant_id: &uuid::Uuid,
         invoice: &Invoice,
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn invoice_items_save(
+        &self,
+        invoice_id: &uuid::Uuid,
+        items: &Vec<InvoiceItem>,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }

@@ -1,9 +1,24 @@
 #![allow(clippy::needless_return)]
 
-use sqlx::Row;
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use sqlx::{Encode, Row, Type, postgres::PgHasArrayType, postgres::types::PgMoney};
 use tracing::{debug, error, info};
 
 use acctg_provider::invoice::{Invoice, InvoiceItem, InvoiceProvider, InvoiceType};
+
+#[derive(Debug, Serialize, Deserialize, Type)]
+#[sqlx(type_name = "acctg.invoice_item_type")]
+pub struct InvoiceItemDerived {
+    pub item_id: uuid::Uuid,
+    pub description: String,
+    pub quantity: Decimal,
+    // pub uom_id: i32,
+    // #[serde(with = "money_format")]
+    pub unit_price: Decimal,
+    // pub total: Decimal,
+    pub currency_id: i32,
+}
 
 pub struct InvoiceProviderPostgres {
     dp: database_provider::DatabaseProvider,
@@ -173,6 +188,47 @@ impl InvoiceProvider for InvoiceProviderPostgres {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn invoice_items_save(
+        &self,
+        invoice_id: &uuid::Uuid,
+        items: &Vec<InvoiceItem>,
+    ) -> Result<(), &'static str> {
+        info!("invoice_items_save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            let derived_items = items
+                .iter()
+                .map(|item| InvoiceItemDerived {
+                    item_id: item.item_id,
+                    description: item.description.clone(),
+                    quantity: item.quantity,
+                    // uom_id: item.uom_id,
+                    unit_price: item.unit_price,
+                    // total: item.total,
+                    currency_id: item.currency_id,
+                })
+                .collect::<Vec<InvoiceItemDerived>>();
+
+            match sqlx::query("call acctg.invoice_items_save($1,$2);")
+                .bind(&invoice_id)
+                .bind(&derived_items)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    error!("Error saving invoice items: {:?}", e);
+                    return Err("Error saving invoice items");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -183,7 +239,7 @@ mod tests {
     use tenants_provider::TenantsProvider;
 
     #[actix_web::test]
-    async fn test_countries() {
+    async fn test_invoice() {
         if let Err(e) = tracing_subscriber::fmt::try_init() {
             println!("error: {:?}", e);
         }
@@ -233,6 +289,31 @@ mod tests {
         if let Err(e) = ipp.invoices_fetch(&tenant_id, &"%").await {
             error!(e);
             assert!(false, "unable to fetch invoices");
+        }
+
+        let invoice_items = vec![
+            InvoiceItem {
+                item_id: uuid::Uuid::new_v4(),
+                description: String::from("test item 1"),
+                quantity: Decimal::new(15, 1),
+                uom_id: 1,
+                unit_price: Decimal::new(100, 2),
+                total: Decimal::new(100, 2),
+                currency_id: 1,
+            },
+            InvoiceItem {
+                item_id: uuid::Uuid::new_v4(),
+                description: String::from("test item 2"),
+                quantity: Decimal::new(25, 1),
+                uom_id: 1,
+                unit_price: Decimal::new(200, 2),
+                total: Decimal::new(400, 2),
+                currency_id: 1,
+            },
+        ];
+        if let Err(e) = ipp.invoice_items_save(&invoice_id, &invoice_items).await {
+            error!(e);
+            assert!(false, "unable to save invoice items");
         }
     }
 }
