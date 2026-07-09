@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InvoiceType {
-    pub id: i32,
+    pub id: i16,
     pub name: String,
 }
 
