@@ -141,7 +141,7 @@ impl AccountsProvider for AccountsProviderPostgres {
     async fn account_save(
         &self,
         tenant_id: &uuid::Uuid,
-        account: Account,
+        account: &Account,
     ) -> Result<(), &'static str> {
         info!("account_save");
 
@@ -193,6 +193,8 @@ mod tests {
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
         let app = AccountsProviderPostgres::new(&dp);
 
+        let name = format!("test_{}", rand::random::<u16>());
+
         let tenant_id = tp
             .tenant_fetch_by_name("tenant_01")
             .await
@@ -212,14 +214,14 @@ mod tests {
         if let Err(e) = app
             .account_save(
                 &tenant_id,
-                Account {
+                &Account {
                     account_id: uuid::Uuid::new_v4(),
                     active: true,
                     account_type_id: 1,
                     account_category_id: 1,
-                    name: "Test Account".to_string(),
-                    code: "TEST".to_string(),
-                    description: "Test Account".to_string(),
+                    name: name.clone(),
+                    code: name.clone(),
+                    description: name.clone(),
                 },
             )
             .await

@@ -46,6 +46,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .guard(guard::Header("content-type", "application/json"))
                     .to(accounts_fetch_all_post),
             ),
+    )
+    .service(
+        web::resource("account/save")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(account_save_post),
+            ),
     );
 }
 
@@ -124,6 +133,38 @@ async fn accounts_fetch_all_post(
                 Some(json!({
                     "accounts": accounts
                 })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AccountSavePostData {
+    account: acctg_provider::accounts::Account,
+}
+
+async fn account_save_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<AccountSavePostData>,
+) -> impl Responder {
+    info!("account_save_post");
+
+    let app = acctg_provider_postgres::accounts::AccountsProviderPostgres::new(&dp);
+
+    let tenant_id = user.tenant().tenant_id();
+
+    match app.account_save(&tenant_id, &params.account).await {
+        Err(e) => {
+            error!("unable to save account: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to save account"));
+        }
+        Ok(_) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully saved account",
+                None,
             ));
         }
     }

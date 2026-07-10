@@ -16,7 +16,7 @@ pub struct AccountCategory {
     pub sub_name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {
     pub account_id: uuid::Uuid,
     pub active: bool,
@@ -44,6 +44,6 @@ pub trait AccountsProvider {
     fn account_save(
         &self,
         tenant_id: &uuid::Uuid,
-        account: Account,
+        account: &Account,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
