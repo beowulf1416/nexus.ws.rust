@@ -167,7 +167,7 @@ async fn invoice_fetch_post(
 #[derive(Debug, Serialize, Deserialize)]
 struct InvoiceSavePostData {
     invoice_id: uuid::Uuid,
-    invoice_type_id: i32,
+    invoice_type_id: i16,
     due_date: Option<chrono::DateTime<chrono::Utc>>,
     description: String,
     // currency_id: i32,

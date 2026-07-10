@@ -81,6 +81,9 @@ async fn main() -> std::io::Result<()> {
             // .service(web::scope("/documents").configure(crate::endpoints::documents::config))
             .service(web::scope("/file").configure(crate::endpoints::file::config))
             .service(
+                web::scope("/acctg/accounts").configure(crate::endpoints::acctg::accounts::config),
+            )
+            .service(
                 web::scope("/acctg/invoices").configure(crate::endpoints::acctg::invoice::config),
             )
             .service(web::scope("/crm").configure(crate::endpoints::crm::config))
