@@ -137,6 +137,40 @@ impl AccountsProvider for AccountsProviderPostgres {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn account_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        account: Account,
+    ) -> Result<(), &'static str> {
+        info!("account_save");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("call acctg.account_save($1, $2, $3, $4, $5, $6, $7);")
+                .bind(&tenant_id)
+                .bind(&account.account_id)
+                .bind(account.account_type_id)
+                .bind(account.account_category_id)
+                // .bind(account.active)
+                .bind(&account.code)
+                .bind(&account.name)
+                .bind(&account.description)
+                .execute(&pool)
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    error!("Error saving accounts: {:?}", e);
+                    return Err("Error saving accounts");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -173,6 +207,25 @@ mod tests {
         if let Err(e) = app.account_categories_fetch().await {
             error!(e);
             assert!(false, "unable to fetch account categories");
+        }
+
+        if let Err(e) = app
+            .account_save(
+                &tenant_id,
+                Account {
+                    account_id: uuid::Uuid::new_v4(),
+                    active: true,
+                    account_type_id: 1,
+                    account_category_id: 1,
+                    name: "Test Account".to_string(),
+                    code: "TEST".to_string(),
+                    description: "Test Account".to_string(),
+                },
+            )
+            .await
+        {
+            error!(e);
+            assert!(false, "unable to save account");
         }
 
         if let Err(e) = app.accounts_fetch_all(&tenant_id).await {
