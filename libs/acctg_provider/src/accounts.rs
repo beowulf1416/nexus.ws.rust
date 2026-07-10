@@ -16,6 +16,17 @@ pub struct AccountCategory {
     pub sub_name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Account {
+    pub account_id: uuid::Uuid,
+    pub active: bool,
+    pub account_type_id: i16,
+    pub account_category_id: i16,
+    pub name: String,
+    pub code: String,
+    pub description: String,
+}
+
 pub trait AccountsProvider {
     fn account_types_fetch(
         &self,
@@ -24,4 +35,9 @@ pub trait AccountsProvider {
     fn account_categories_fetch(
         &self,
     ) -> impl Future<Output = Result<Vec<AccountCategory>, &'static str>> + Send;
+
+    fn accounts_fetch_all(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
 }

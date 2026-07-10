@@ -23,7 +23,7 @@ pub struct InvoiceItem {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Invoice {
     pub invoice_id: uuid::Uuid,
-    pub invoice_type_id: i32,
+    pub invoice_type_id: i16,
     pub invoice_id_seq: i32,
 
     pub active: bool,

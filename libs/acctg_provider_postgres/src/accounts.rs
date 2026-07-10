@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tracing::{error, info};
 
-use acctg_provider::accounts::{AccountCategory, AccountType, AccountsProvider};
+use acctg_provider::accounts::{Account, AccountCategory, AccountType, AccountsProvider};
 
 pub struct AccountsProviderPostgres {
     dp: database_provider::DatabaseProvider,
@@ -89,6 +89,54 @@ impl AccountsProvider for AccountsProviderPostgres {
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn accounts_fetch_all(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> Result<Vec<Account>, &'static str> {
+        info!("accounts_fetch_all");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.accounts_fetch_all($1);")
+                .bind(tenant_id)
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let accounts: Vec<Account> = rows
+                        .iter()
+                        .map(|r| {
+                            let account_id: uuid::Uuid = r.get("account_id");
+                            let active: bool = r.get("active");
+                            let account_type_id: i16 = r.get("account_type_id");
+                            let account_category_id: i16 = r.get("account_category_id");
+                            let name: String = r.get("name");
+                            let code: String = r.get("code");
+                            let description: String = r.get("description");
+                            return Account {
+                                account_id,
+                                active,
+                                account_type_id,
+                                account_category_id,
+                                name,
+                                code,
+                                description,
+                            };
+                        })
+                        .collect();
+
+                    return Ok(accounts);
+                }
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -111,6 +159,12 @@ mod tests {
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
         let app = AccountsProviderPostgres::new(&dp);
 
+        let tenant_id = tp
+            .tenant_fetch_by_name("tenant_01")
+            .await
+            .unwrap()
+            .tenant_id();
+
         if let Err(e) = app.account_types_fetch().await {
             error!(e);
             assert!(false, "unable to fetch account types");
@@ -119,6 +173,11 @@ mod tests {
         if let Err(e) = app.account_categories_fetch().await {
             error!(e);
             assert!(false, "unable to fetch account categories");
+        }
+
+        if let Err(e) = app.accounts_fetch_all(&tenant_id).await {
+            error!(e);
+            assert!(false, "unable to fetch accounts");
         }
     }
 }

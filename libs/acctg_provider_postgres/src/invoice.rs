@@ -85,7 +85,7 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                         .iter()
                         .map(|r| {
                             let invoice_id: uuid::Uuid = r.get("invoice_id");
-                            let invoice_type_id: i32 = r.get("invoice_type_id");
+                            let invoice_type_id: i16 = r.get("invoice_type_id");
                             let invoice_id_seq: i32 = r.get("invoice_id_seq");
                             let active: bool = r.get("active");
                             let created_at: chrono::DateTime<chrono::Utc> = r.get("created_ts");
@@ -129,7 +129,7 @@ impl InvoiceProvider for InvoiceProviderPostgres {
             {
                 Ok(row) => {
                     let invoice_id: uuid::Uuid = row.get("invoice_id");
-                    let invoice_type_id: i32 = row.get("invoice_type_id");
+                    let invoice_type_id: i16 = row.get("invoice_type_id");
                     let invoice_id_seq: i32 = row.get("invoice_id_seq");
                     let active: bool = row.get("active");
                     let created_at: chrono::DateTime<chrono::Utc> = row.get("created_ts");
@@ -323,30 +323,5 @@ mod tests {
             error!(e);
             assert!(false, "unable to fetch invoices");
         }
-
-        // let invoice_items = vec![
-        //     InvoiceItem {
-        //         item_id: uuid::Uuid::new_v4(),
-        //         description: String::from("test item 1"),
-        //         quantity: Decimal::new(15, 1),
-        //         // uom_id: 1,
-        //         unit_price: Decimal::new(100, 2),
-        //         total: Decimal::new(100, 2),
-        //         currency_id: 1,
-        //     },
-        //     InvoiceItem {
-        //         item_id: uuid::Uuid::new_v4(),
-        //         description: String::from("test item 2"),
-        //         quantity: Decimal::new(25, 1),
-        //         // uom_id: 1,
-        //         unit_price: Decimal::new(200, 2),
-        //         total: Decimal::new(400, 2),
-        //         currency_id: 1,
-        //     },
-        // ];
-        // if let Err(e) = ipp.invoice_items_save(&invoice_id, &invoice_items).await {
-        //     error!(e);
-        //     assert!(false, "unable to save invoice items");
-        // }
     }
 }
