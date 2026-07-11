@@ -138,6 +138,56 @@ impl AccountsProvider for AccountsProviderPostgres {
         }
     }
 
+    async fn accounts_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> Result<Vec<Account>, &'static str> {
+        info!("accounts_fetch_all");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.accounts_fetch($1, $2);")
+                .bind(tenant_id)
+                .bind(filter)
+                .fetch_all(&pool)
+                .await
+            {
+                Ok(rows) => {
+                    let accounts: Vec<Account> = rows
+                        .iter()
+                        .map(|r| {
+                            let account_id: uuid::Uuid = r.get("account_id");
+                            let active: bool = r.get("active");
+                            let account_type_id: i16 = r.get("account_type_id");
+                            let account_category_id: i16 = r.get("account_category_id");
+                            let name: String = r.get("name");
+                            let code: String = r.get("code");
+                            let description: String = r.get("description");
+                            return Account {
+                                account_id,
+                                active,
+                                account_type_id,
+                                account_category_id,
+                                name,
+                                code,
+                                description,
+                            };
+                        })
+                        .collect();
+
+                    return Ok(accounts);
+                }
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn account_save(
         &self,
         tenant_id: &uuid::Uuid,

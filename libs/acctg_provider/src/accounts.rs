@@ -41,6 +41,12 @@ pub trait AccountsProvider {
         tenant_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
 
+    fn accounts_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
+
     fn account_save(
         &self,
         tenant_id: &uuid::Uuid,
