@@ -284,5 +284,10 @@ mod tests {
             error!(e);
             assert!(false, "unable to fetch accounts");
         }
+
+        if let Err(e) = app.accounts_fetch(&tenant_id, &"%").await {
+            error!(e);
+            assert!(false, "unable to fetch accounts");
+        }
     }
 }
