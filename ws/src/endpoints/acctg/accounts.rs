@@ -48,6 +48,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             ),
     )
     .service(
+        web::resource("fetch/by/type")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(accounts_fetch_by_type_post),
+            ),
+    )
+    .service(
         web::resource("fetch")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(
@@ -148,8 +157,44 @@ async fn accounts_fetch_all_post(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct AccountFetchByTypePostData {
+    type_id: i16,
+}
+
+async fn accounts_fetch_by_type_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<AccountFetchByTypePostData>,
+) -> impl Responder {
+    info!("accounts_fetch_by_type_post");
+
+    let app = acctg_provider_postgres::accounts::AccountsProviderPostgres::new(&dp);
+
+    let tenant_id = user.tenant().tenant_id();
+
+    match app
+        .accounts_fetch_by_type(&tenant_id, &params.type_id)
+        .await
+    {
+        Err(e) => {
+            error!("unable to fetch accounts by type: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch accounts by type"));
+        }
+        Ok(accounts) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched accounts by type",
+                Some(json!({
+                    "accounts": accounts
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct AccountFetchPostData {
-    tenant_id: uuid::Uuid,
     filter: String,
 }
 

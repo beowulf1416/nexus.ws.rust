@@ -44,7 +44,7 @@ pub trait AccountsProvider {
     fn accounts_fetch_by_type(
         &self,
         tenant_id: &uuid::Uuid,
-        type_id: i16,
+        type_id: &i16,
     ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
 
     fn accounts_fetch(

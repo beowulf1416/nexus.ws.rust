@@ -141,7 +141,7 @@ impl AccountsProvider for AccountsProviderPostgres {
     async fn accounts_fetch_by_type(
         &self,
         tenant_id: &uuid::Uuid,
-        type_id: i16,
+        type_id: &i16,
     ) -> Result<Vec<Account>, &'static str> {
         info!("accounts_fetch_by_type");
 
