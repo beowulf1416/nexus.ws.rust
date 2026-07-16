@@ -3,7 +3,7 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use acctg_provider::accounts::{Account, AccountCategory, AccountType, AccountsProvider};
 
@@ -26,6 +26,10 @@ impl AccountsProvider for AccountsProviderPostgres {
                 .fetch_all(&pool)
                 .await
             {
+                Err(e) => {
+                    error!("Error fetching account types: {:?}", e);
+                    return Err("Error fetching account types");
+                }
                 Ok(rows) => {
                     let types: Vec<AccountType> = rows
                         .iter()
@@ -40,10 +44,6 @@ impl AccountsProvider for AccountsProviderPostgres {
                         .collect();
 
                     return Ok(types);
-                }
-                Err(e) => {
-                    error!("Error fetching account types: {:?}", e);
-                    return Err("Error fetching account types");
                 }
             }
         } else {
@@ -102,6 +102,10 @@ impl AccountsProvider for AccountsProviderPostgres {
                 .fetch_all(&pool)
                 .await
             {
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
                 Ok(rows) => {
                     let accounts: Vec<Account> = rows
                         .iter()
@@ -126,10 +130,6 @@ impl AccountsProvider for AccountsProviderPostgres {
                         .collect();
 
                     return Ok(accounts);
-                }
-                Err(e) => {
-                    error!("Error fetching accounts: {:?}", e);
-                    return Err("Error fetching accounts");
                 }
             }
         } else {
@@ -152,6 +152,10 @@ impl AccountsProvider for AccountsProviderPostgres {
                 .fetch_all(&pool)
                 .await
             {
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
                 Ok(rows) => {
                     let accounts: Vec<Account> = rows
                         .iter()
@@ -176,10 +180,6 @@ impl AccountsProvider for AccountsProviderPostgres {
                         .collect();
 
                     return Ok(accounts);
-                }
-                Err(e) => {
-                    error!("Error fetching accounts: {:?}", e);
-                    return Err("Error fetching accounts");
                 }
             }
         } else {
@@ -191,17 +191,23 @@ impl AccountsProvider for AccountsProviderPostgres {
     async fn accounts_fetch(
         &self,
         tenant_id: &uuid::Uuid,
+        account_type_id: &i16,
         filter: &str,
     ) -> Result<Vec<Account>, &'static str> {
-        info!("accounts_fetch_all");
+        info!("accounts_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.accounts_fetch($1, $2);")
+            match sqlx::query("select * from acctg.accounts_fetch($1, $2, $3);")
                 .bind(tenant_id)
+                .bind(account_type_id)
                 .bind(filter)
                 .fetch_all(&pool)
                 .await
             {
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
                 Ok(rows) => {
                     let accounts: Vec<Account> = rows
                         .iter()
@@ -224,12 +230,8 @@ impl AccountsProvider for AccountsProviderPostgres {
                             };
                         })
                         .collect();
-
+                    debug!("accounts: {:?}", accounts);
                     return Ok(accounts);
-                }
-                Err(e) => {
-                    error!("Error fetching accounts: {:?}", e);
-                    return Err("Error fetching accounts");
                 }
             }
         } else {
@@ -335,12 +337,12 @@ mod tests {
             assert!(false, "unable to fetch accounts");
         }
 
-        if let Err(e) = app.accounts_fetch_by_type(&tenant_id, 1).await {
+        if let Err(e) = app.accounts_fetch_by_type(&tenant_id, &1).await {
             error!(e);
             assert!(false, "unable to fetch accounts by type");
         }
 
-        if let Err(e) = app.accounts_fetch(&tenant_id, &"%").await {
+        if let Err(e) = app.accounts_fetch(&tenant_id, &1, &"%").await {
             error!(e);
             assert!(false, "unable to fetch accounts by filter");
         }
