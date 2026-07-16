@@ -195,6 +195,7 @@ async fn accounts_fetch_by_type_post(
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AccountFetchPostData {
+    account_type_id: i16,
     filter: String,
 }
 
@@ -210,7 +211,11 @@ async fn accounts_fetch_post(
     let tenant_id = user.tenant().tenant_id();
 
     match app
-        .accounts_fetch(&tenant_id, &params.filter.as_str())
+        .accounts_fetch(
+            &tenant_id,
+            &params.account_type_id,
+            format!("%{}%", params.filter).as_str(),
+        )
         .await
     {
         Err(e) => {
@@ -219,6 +224,7 @@ async fn accounts_fetch_post(
                 .json(ApiResponse::error("unable to fetch accounts"));
         }
         Ok(accounts) => {
+            debug!("accounts: {:?}", accounts);
             return HttpResponse::Ok().json(ApiResponse::new(
                 true,
                 "successfully fetched accounts",

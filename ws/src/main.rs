@@ -67,31 +67,42 @@ async fn main() -> std::io::Result<()> {
                 )
                 .into()
             }))
-            .service(web::scope("/common").configure(crate::endpoints::common::config))
-            .service(web::scope("/session").configure(crate::endpoints::session::config))
+            .service(web::scope("/api/v1/common").configure(crate::endpoints::common::config))
+            .service(web::scope("/api/v1/session").configure(crate::endpoints::session::config))
             .service(
-                web::scope("/user/sign-up").configure(crate::endpoints::user::registration::config),
+                web::scope("/api/v1/user/sign-up")
+                    .configure(crate::endpoints::user::registration::config),
             )
-            .service(web::scope("/users").configure(crate::endpoints::user::users::config))
-            .service(web::scope("/permissions").configure(crate::endpoints::permissions::config))
+            .service(web::scope("/api/v1/users").configure(crate::endpoints::user::users::config))
             .service(
-                web::scope("/admin/tenants").configure(crate::endpoints::admin::tenants::config),
+                web::scope("/api/v1/permissions").configure(crate::endpoints::permissions::config),
             )
-            .service(web::scope("/admin/users").configure(crate::endpoints::admin::users::config))
+            .service(
+                web::scope("/api/v1/admin/tenants")
+                    .configure(crate::endpoints::admin::tenants::config),
+            )
+            .service(
+                web::scope("/api/v1/admin/users").configure(crate::endpoints::admin::users::config),
+            )
             // .service(web::scope("/documents").configure(crate::endpoints::documents::config))
-            .service(web::scope("/file").configure(crate::endpoints::file::config))
+            .service(web::scope("/api/v1/file").configure(crate::endpoints::file::config))
             .service(
-                web::scope("/acctg/accounts").configure(crate::endpoints::acctg::accounts::config),
+                web::scope("/api/v1/acctg/accounts")
+                    .configure(crate::endpoints::acctg::accounts::config),
             )
             .service(
-                web::scope("/acctg/invoices").configure(crate::endpoints::acctg::invoice::config),
+                web::scope("/api/v1/acctg/invoices")
+                    .configure(crate::endpoints::acctg::invoice::config),
             )
-            .service(web::scope("/crm").configure(crate::endpoints::crm::config))
+            .service(web::scope("/api/v1/crm").configure(crate::endpoints::crm::config))
             .service(
-                web::scope("/inv/warehouses")
+                web::scope("/api/v1/inv/warehouses")
                     .configure(crate::endpoints::inventory::warehouse::config),
             )
-            .service(web::scope("/inv/items").configure(crate::endpoints::inventory::item::config));
+            .service(
+                web::scope("/api/v1/inv/items")
+                    .configure(crate::endpoints::inventory::item::config),
+            );
 
         return app;
     })
