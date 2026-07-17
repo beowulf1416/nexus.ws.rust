@@ -59,6 +59,11 @@ pub trait AccountsProvider {
         account_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<Account, &'static str>> + Send;
 
+    fn account_fetch_children(
+        &self,
+        account_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
+
     fn account_save(
         &self,
         tenant_id: &uuid::Uuid,

@@ -284,6 +284,54 @@ impl AccountsProvider for AccountsProviderPostgres {
         }
     }
 
+    async fn account_fetch_children(
+        &self,
+        account_id: &uuid::Uuid,
+    ) -> Result<Vec<Account>, &'static str> {
+        info!("accounts_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.account_fetch_children($1);")
+                .bind(account_id)
+                .fetch_all(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
+                Ok(rows) => {
+                    let accounts: Vec<Account> = rows
+                        .iter()
+                        .map(|r| {
+                            let account_id: uuid::Uuid = r.get("account_id");
+                            let active: bool = r.get("active");
+                            let account_type_id: i16 = r.get("account_type_id");
+                            let account_category_id: i16 = r.get("account_category_id");
+                            let name: String = r.get("name");
+                            let code: String = r.get("code");
+                            let description: String = r.get("description");
+                            return Account {
+                                account_id,
+                                active,
+                                account_type_id,
+                                account_category_id,
+                                name,
+                                code,
+                                description,
+                            };
+                        })
+                        .collect();
+                    // debug!("accounts: {:?}", accounts);
+                    return Ok(accounts);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn account_save(
         &self,
         tenant_id: &uuid::Uuid,
@@ -379,6 +427,11 @@ mod tests {
         }
 
         if let Err(e) = app.account_fetch(&account_id).await {
+            error!(e);
+            assert!(false, "unable to fetch account");
+        }
+
+        if let Err(e) = app.account_fetch_children(&account_id).await {
             error!(e);
             assert!(false, "unable to fetch account");
         }
