@@ -9,12 +9,8 @@ use std::sync::Arc;
 use actix_web::{HttpResponse, Responder, guard, http, web};
 
 use crate::{
-    classes::{
-        user,
-        // tenant,
-        // permission
-    },
-    endpoints::{ApiResponse, default_option_response},
+    classes::user,
+    endpoints::{ApiResponse, acctg, default_option_response},
 };
 
 use acctg_provider::accounts::AccountsProvider;
@@ -224,7 +220,7 @@ async fn accounts_fetch_post(
                 .json(ApiResponse::error("unable to fetch accounts"));
         }
         Ok(accounts) => {
-            debug!("accounts: {:?}", accounts);
+            // debug!("accounts: {:?}", accounts);
             return HttpResponse::Ok().json(ApiResponse::new(
                 true,
                 "successfully fetched accounts",
@@ -247,6 +243,7 @@ async fn account_save_post(
     params: web::Json<AccountSavePostData>,
 ) -> impl Responder {
     info!("account_save_post");
+    // debug!("params: {:?}", params);
 
     let app = acctg_provider_postgres::accounts::AccountsProviderPostgres::new(&dp);
 

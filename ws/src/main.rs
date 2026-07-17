@@ -67,6 +67,10 @@ async fn main() -> std::io::Result<()> {
                 )
                 .into()
             }))
+            // .app_data(web::PathConfig::default().error_handler(|err, _req| {
+            //     debug!("PATH ERROR: {}", err);
+            //     return actix_web::error::ErrorBadRequest(err);
+            // }))
             .service(web::scope("/api/v1/common").configure(crate::endpoints::common::config))
             .service(web::scope("/api/v1/session").configure(crate::endpoints::session::config))
             .service(
