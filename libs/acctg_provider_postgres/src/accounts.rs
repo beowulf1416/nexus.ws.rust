@@ -240,6 +240,50 @@ impl AccountsProvider for AccountsProviderPostgres {
         }
     }
 
+    async fn account_fetch(&self, account_id: &uuid::Uuid) -> Result<Account, &'static str> {
+        info!("account_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query("select * from acctg.account_fetch($1);")
+                .bind(account_id)
+                .fetch_one(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching account: {:?}", e);
+                    return Err("Error fetching account");
+                }
+                Ok(r) => {
+                    if r.is_empty() {
+                        return Err("Account not found");
+                    }
+                    let account_id: uuid::Uuid = r.get("account_id");
+                    let active: bool = r.get("active");
+                    let account_type_id: i16 = r.get("account_type_id");
+                    let account_category_id: i16 = r.get("account_category_id");
+                    let name: String = r.get("name");
+                    let code: String = r.get("code");
+                    let description: String = r.get("description");
+
+                    let account = Account {
+                        account_id,
+                        active,
+                        account_type_id,
+                        account_category_id,
+                        name,
+                        code,
+                        description,
+                    };
+                    // debug!("accounts: {:?}", accounts);
+                    return Ok(account);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn account_save(
         &self,
         tenant_id: &uuid::Uuid,
@@ -313,11 +357,13 @@ mod tests {
             assert!(false, "unable to fetch account categories");
         }
 
+        let account_id = uuid::Uuid::new_v4();
+
         if let Err(e) = app
             .account_save(
                 &tenant_id,
                 &Account {
-                    account_id: uuid::Uuid::new_v4(),
+                    account_id: account_id,
                     active: true,
                     account_type_id: 1,
                     account_category_id: 1,
@@ -330,6 +376,11 @@ mod tests {
         {
             error!(e);
             assert!(false, "unable to save account");
+        }
+
+        if let Err(e) = app.account_fetch(&account_id).await {
+            error!(e);
+            assert!(false, "unable to fetch account");
         }
 
         if let Err(e) = app.accounts_fetch_all(&tenant_id).await {

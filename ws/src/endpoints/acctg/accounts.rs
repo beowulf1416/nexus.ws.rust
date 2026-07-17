@@ -62,6 +62,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             ),
     )
     .service(
+        web::resource("account/fetch")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(account_fetch_post),
+            ),
+    )
+    .service(
         web::resource("account/save")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(
@@ -190,7 +199,7 @@ async fn accounts_fetch_by_type_post(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AccountFetchPostData {
+struct AccountsFetchPostData {
     account_type_id: i16,
     filter: String,
 }
@@ -198,7 +207,7 @@ struct AccountFetchPostData {
 async fn accounts_fetch_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
     user: user::User,
-    params: web::Json<AccountFetchPostData>,
+    params: web::Json<AccountsFetchPostData>,
 ) -> impl Responder {
     info!("accounts_fetch_post");
 
@@ -226,6 +235,39 @@ async fn accounts_fetch_post(
                 "successfully fetched accounts",
                 Some(json!({
                     "accounts": accounts
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AccountFetchPostData {
+    account_id: uuid::Uuid,
+}
+
+async fn account_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<AccountFetchPostData>,
+) -> impl Responder {
+    info!("accounts_fetch_post");
+
+    let app = acctg_provider_postgres::accounts::AccountsProviderPostgres::new(&dp);
+
+    match app.account_fetch(&params.account_id).await {
+        Err(e) => {
+            error!("unable to fetch account: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch account"));
+        }
+        Ok(account) => {
+            // debug!("account: {:?}", account);
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched account",
+                Some(json!({
+                    "account": account
                 })),
             ));
         }
