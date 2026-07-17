@@ -230,7 +230,7 @@ impl AccountsProvider for AccountsProviderPostgres {
                             };
                         })
                         .collect();
-                    debug!("accounts: {:?}", accounts);
+                    // debug!("accounts: {:?}", accounts);
                     return Ok(accounts);
                 }
             }
