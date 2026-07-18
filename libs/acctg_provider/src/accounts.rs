@@ -9,7 +9,7 @@ pub struct AccountType {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccountCategory {
     pub account_category_id: i16,
     pub name: String,
@@ -25,6 +25,18 @@ pub struct Account {
     pub name: String,
     pub code: String,
     pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountNode {
+    pub account_id: uuid::Uuid,
+    pub active: bool,
+    pub account_type_id: i16,
+    pub account_category_id: i16,
+    pub name: String,
+    pub code: String,
+    pub description: String,
+    pub children: Vec<AccountNode>,
 }
 
 pub trait AccountsProvider {
@@ -53,6 +65,11 @@ pub trait AccountsProvider {
         account_type_id: &i16,
         filter: &str,
     ) -> impl Future<Output = Result<Vec<Account>, &'static str>> + Send;
+
+    fn accounts_fetch_tree(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<AccountNode>, &'static str>> + Send;
 
     fn account_fetch(
         &self,

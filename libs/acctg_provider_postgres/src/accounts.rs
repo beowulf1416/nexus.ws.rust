@@ -2,10 +2,58 @@
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{Row, postgres::PgRow, prelude::FromRow};
+use std::collections::HashMap;
 use tracing::{debug, error, info};
 
-use acctg_provider::accounts::{Account, AccountCategory, AccountType, AccountsProvider};
+use acctg_provider::accounts::{
+    Account, AccountCategory, AccountNode, AccountType, AccountsProvider,
+};
+
+pub struct AccountTypeItem(pub AccountType);
+
+impl<'r> FromRow<'r, PgRow> for AccountTypeItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(AccountType {
+            account_type_id: row.get("account_type_id"),
+            name: row.get("name"),
+        }));
+    }
+}
+
+#[derive(Debug)]
+pub struct AccountCategoryItem(pub AccountCategory);
+
+impl<'r> FromRow<'r, PgRow> for AccountCategoryItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(AccountCategory {
+            account_category_id: row.get("acct_category_id"),
+            name: row.get("name"),
+            sub_name: row.get("sub_name"),
+        }));
+    }
+}
+
+#[derive(Debug)]
+pub struct AccountItem {
+    pub account_id: uuid::Uuid,
+    pub parent_id: Option<uuid::Uuid>,
+    pub name: String,
+    pub level: i32,
+    pub path: String,
+}
+
+impl<'r> FromRow<'r, PgRow> for AccountItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self {
+            account_id: row.get("account_id"),
+            parent_id: row.get("parent_account_id"),
+            name: row.get("name"),
+            level: row.get("level"),
+            path: row.get("path"),
+        });
+    }
+}
 
 pub struct AccountsProviderPostgres {
     dp: database_provider::DatabaseProvider,
@@ -15,6 +63,46 @@ impl AccountsProviderPostgres {
     pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
         return Self { dp: dp.clone() };
     }
+
+    fn build_tree(&self, accounts: &Vec<AccountItem>) -> Vec<AccountNode> {
+        info!("build_tree");
+
+        // place accounts into a hash map for quick lookup
+        let mut account_map: HashMap<Option<uuid::Uuid>, AccountNode> = HashMap::new();
+        for a in accounts {
+            account_map
+                .entry(a.parent_id)
+                .or_insert(AccountNode {
+                    account_id: uuid::Uuid::nil(),
+                    active: true,
+                    account_type_id: 0,
+                    account_category_id: 0,
+                    name: String::from("root"),
+                    code: String::from("root"),
+                    description: String::from("root"),
+                    children: Vec::<AccountNode>::new(),
+                })
+                .children
+                .push(AccountNode {
+                    account_id: a.account_id,
+                    active: true,
+                    account_type_id: 0,
+                    account_category_id: 0,
+                    name: a.name.clone(),
+                    code: a.name.clone(),
+                    description: a.name.clone(),
+                    children: Vec::<AccountNode>::new(),
+                });
+        }
+
+        // debug!("account_tree: {:?}", account_map);
+
+        return account_map
+            .get(&Some(uuid::Uuid::nil()))
+            .cloned()
+            .unwrap()
+            .children;
+    }
 }
 
 impl AccountsProvider for AccountsProviderPostgres {
@@ -22,7 +110,7 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("account_types_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.account_types_fetch();")
+            match sqlx::query_as::<_, AccountTypeItem>("select * from acctg.account_types_fetch();")
                 .fetch_all(&pool)
                 .await
             {
@@ -31,19 +119,7 @@ impl AccountsProvider for AccountsProviderPostgres {
                     return Err("Error fetching account types");
                 }
                 Ok(rows) => {
-                    let types: Vec<AccountType> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_type_id: i16 = r.get("account_type_id");
-                            let name: String = r.get("name");
-                            return AccountType {
-                                account_type_id: account_type_id,
-                                name,
-                            };
-                        })
-                        .collect();
-
-                    return Ok(types);
+                    return Ok(rows.into_iter().map(|r| r.0).collect());
                 }
             }
         } else {
@@ -58,30 +134,18 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("account_categories_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.account_categories_fetch();")
-                .fetch_all(&pool)
-                .await
+            match sqlx::query_as::<_, AccountCategoryItem>(
+                "select * from acctg.account_categories_fetch();",
+            )
+            .fetch_all(&pool)
+            .await
             {
-                Ok(rows) => {
-                    let categories: Vec<AccountCategory> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_category_id: i16 = r.get("acct_category_id");
-                            let name: String = r.get("name");
-                            let sub_name: String = r.get("sub_name");
-                            return AccountCategory {
-                                account_category_id,
-                                name,
-                                sub_name,
-                            };
-                        })
-                        .collect();
-
-                    return Ok(categories);
-                }
                 Err(e) => {
-                    error!("Error fetching categories types: {:?}", e);
-                    return Err("Error fetching categories types");
+                    error!("Error fetching account categories: {:?}", e);
+                    return Err("Error fetching account categories");
+                }
+                Ok(rows) => {
+                    return Ok(rows.iter().map(|r| r.0.clone()).collect());
                 }
             }
         } else {
@@ -232,6 +296,36 @@ impl AccountsProvider for AccountsProviderPostgres {
                         .collect();
                     // debug!("accounts: {:?}", accounts);
                     return Ok(accounts);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn accounts_fetch_tree(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> Result<Vec<AccountNode>, &'static str> {
+        info!("accounts_fetch_tree");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, AccountItem>("select * from acctg.accounts_fetch_tree($1);")
+                .bind(tenant_id)
+                .fetch_all(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching accounts: {:?}", e);
+                    return Err("Error fetching accounts");
+                }
+                Ok(accounts) => {
+                    // debug!("accounts: {:?}", accounts);
+
+                    let account_nodes = self.build_tree(&accounts);
+
+                    return Ok(account_nodes);
                 }
             }
         } else {
@@ -449,6 +543,11 @@ mod tests {
         if let Err(e) = app.accounts_fetch(&tenant_id, &1, &"%").await {
             error!(e);
             assert!(false, "unable to fetch accounts by filter");
+        }
+
+        if let Err(e) = app.accounts_fetch_tree(&tenant_id).await {
+            error!(e);
+            assert!(false, "unable to fetch accounts tree");
         }
     }
 }
