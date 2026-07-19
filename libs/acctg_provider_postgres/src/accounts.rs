@@ -67,22 +67,17 @@ impl AccountsProviderPostgres {
     fn build_tree(&self, accounts: &Vec<AccountItem>) -> Vec<AccountNode> {
         info!("build_tree");
 
-        // place accounts into a hash map for quick lookup
-        let mut account_map: HashMap<Option<uuid::Uuid>, AccountNode> = HashMap::new();
+        // convert to hashmap for efficient lookup
+        let mut nodes: HashMap<Option<uuid::Uuid>, Vec<AccountNode>> = HashMap::new();
+        // insert null uuid key value
+        nodes.insert(Some(uuid::Uuid::nil()), Vec::new());
+
         for a in accounts {
-            account_map
+            // debug!("account: {:?}", a);
+            nodes
                 .entry(a.parent_id)
-                .or_insert(AccountNode {
-                    account_id: uuid::Uuid::nil(),
-                    active: true,
-                    account_type_id: 0,
-                    account_category_id: 0,
-                    name: String::from("root"),
-                    code: String::from("root"),
-                    description: String::from("root"),
-                    children: Vec::<AccountNode>::new(),
-                })
-                .children
+                .or_insert(Vec::new()) // if entry is not found, use an empty vector
+                // insert the account node into the vector for the parent
                 .push(AccountNode {
                     account_id: a.account_id,
                     active: true,
@@ -91,17 +86,39 @@ impl AccountsProviderPostgres {
                     name: a.name.clone(),
                     code: a.name.clone(),
                     description: a.name.clone(),
-                    children: Vec::<AccountNode>::new(),
+                    children: Vec::new(),
                 });
         }
+        // debug!("nodes: {:?}", nodes);
 
-        // debug!("account_tree: {:?}", account_map);
+        fn build(
+            parent_id: Option<uuid::Uuid>,
+            children: &mut HashMap<Option<uuid::Uuid>, Vec<AccountNode>>,
+        ) -> Vec<AccountNode> {
+            // info!("build: parent_id={:?}", parent_id);
+            let result = children
+                .remove(&parent_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|r| AccountNode {
+                    account_id: r.account_id,
+                    active: r.active,
+                    account_type_id: r.account_type_id,
+                    account_category_id: r.account_category_id,
+                    name: r.name.clone(),
+                    code: r.code.clone(),
+                    description: r.description.clone(),
+                    // call this recursively to build the children
+                    children: build(Some(r.account_id), children),
+                })
+                .collect::<Vec<_>>();
 
-        return account_map
-            .get(&Some(uuid::Uuid::nil()))
-            .cloned()
-            .unwrap()
-            .children;
+            return result;
+        }
+
+        let result = build(Some(uuid::Uuid::nil()), &mut nodes);
+        // debug!("result: {:?}", result);
+        return result;
     }
 }
 
@@ -321,9 +338,9 @@ impl AccountsProvider for AccountsProviderPostgres {
                     return Err("Error fetching accounts");
                 }
                 Ok(accounts) => {
-                    // debug!("accounts: {:?}", accounts);
-
+                    // debug!("before accounts_fetch_tree: {:?}", accounts);
                     let account_nodes = self.build_tree(&accounts);
+                    // debug!("after accounts_fetch_tree: {:?}", account_nodes);
 
                     return Ok(account_nodes);
                 }
@@ -549,5 +566,63 @@ mod tests {
             error!(e);
             assert!(false, "unable to fetch accounts tree");
         }
+
+        // test tree building
+        let asset_acct_id = uuid::Uuid::new_v4();
+        let asset_child_id_1 = uuid::Uuid::new_v4();
+        let asset_child_id_2 = uuid::Uuid::new_v4();
+        let asset_child_id_1_1 = uuid::Uuid::new_v4();
+
+        let liability_acct_id = uuid::Uuid::new_v4();
+        let liability_child_id_1 = uuid::Uuid::new_v4();
+
+        let mut accounts = vec![
+            AccountItem {
+                account_id: asset_acct_id,
+                parent_id: Some(uuid::Uuid::nil()),
+                name: "asset".to_string(),
+                level: 0,
+                path: "asset".to_string(),
+            },
+            AccountItem {
+                account_id: asset_child_id_1,
+                parent_id: Some(asset_acct_id),
+                name: "asset child 1".to_string(),
+                level: 1,
+                path: "asset/asset child 1".to_string(),
+            },
+            AccountItem {
+                account_id: asset_child_id_1_1,
+                parent_id: Some(asset_child_id_1),
+                name: "asset child 1 1".to_string(),
+                level: 2,
+                path: "asset/asset child 1/asset child 1 1".to_string(),
+            },
+            AccountItem {
+                account_id: asset_child_id_2,
+                parent_id: Some(asset_acct_id),
+                name: "asset child 2".to_string(),
+                level: 1,
+                path: "asset/asset child 2".to_string(),
+            },
+            AccountItem {
+                account_id: liability_acct_id,
+                parent_id: Some(uuid::Uuid::nil()),
+                name: "liability".to_string(),
+                level: 0,
+                path: "liability".to_string(),
+            },
+            AccountItem {
+                account_id: liability_child_id_1,
+                parent_id: Some(liability_acct_id),
+                name: "liability child 1".to_string(),
+                level: 1,
+                path: "liability/liability child 1".to_string(),
+            },
+        ];
+        // debug!("before tree_test: {:?}", accounts);
+        let result = app.build_tree(&accounts);
+        // debug!("after tree_test: {:?}", result);
+        assert_eq!(result.len(), 2);
     }
 }
