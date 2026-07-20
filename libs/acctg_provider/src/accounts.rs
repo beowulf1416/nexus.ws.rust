@@ -37,6 +37,7 @@ pub struct AccountNode {
     pub code: String,
     pub description: String,
     pub children: Vec<AccountNode>,
+    pub level: i32,
 }
 
 pub trait AccountsProvider {

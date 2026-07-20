@@ -87,6 +87,7 @@ impl AccountsProviderPostgres {
                     code: a.name.clone(),
                     description: a.name.clone(),
                     children: Vec::new(),
+                    level: a.level,
                 });
         }
         // debug!("nodes: {:?}", nodes);
@@ -108,6 +109,7 @@ impl AccountsProviderPostgres {
                     name: r.name.clone(),
                     code: r.code.clone(),
                     description: r.description.clone(),
+                    level: r.level,
                     // call this recursively to build the children
                     children: build(Some(r.account_id), children),
                 })
