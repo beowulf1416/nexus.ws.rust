@@ -34,6 +34,7 @@ impl<'r> FromRow<'r, PgRow> for AccountCategoryItem {
     }
 }
 
+// todo: poorly named
 #[derive(Debug)]
 pub struct AccountItem {
     pub account_id: uuid::Uuid,
@@ -52,6 +53,23 @@ impl<'r> FromRow<'r, PgRow> for AccountItem {
             level: row.get("level"),
             path: row.get("path"),
         });
+    }
+}
+
+// todo: poorly named
+struct AccountItemType(pub Account);
+
+impl<'r> FromRow<'r, PgRow> for AccountItemType {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(Account {
+            account_id: row.get("account_id"),
+            active: row.get("active"),
+            account_type_id: row.get("account_type_id"),
+            account_category_id: row.get("account_category_id"),
+            name: row.get("name"),
+            code: row.get("code"),
+            description: row.get("description"),
+        }));
     }
 }
 
@@ -180,37 +198,19 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("accounts_fetch_all");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.accounts_fetch_all($1);")
-                .bind(tenant_id)
-                .fetch_all(&pool)
-                .await
+            match sqlx::query_as::<_, AccountItemType>(
+                "select * from acctg.accounts_fetch_all($1);",
+            )
+            .bind(tenant_id)
+            .fetch_all(&pool)
+            .await
             {
                 Err(e) => {
                     error!("Error fetching accounts: {:?}", e);
                     return Err("Error fetching accounts");
                 }
                 Ok(rows) => {
-                    let accounts: Vec<Account> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_id: uuid::Uuid = r.get("account_id");
-                            let active: bool = r.get("active");
-                            let account_type_id: i16 = r.get("account_type_id");
-                            let account_category_id: i16 = r.get("account_category_id");
-                            let name: String = r.get("name");
-                            let code: String = r.get("code");
-                            let description: String = r.get("description");
-                            return Account {
-                                account_id,
-                                active,
-                                account_type_id,
-                                account_category_id,
-                                name,
-                                code,
-                                description,
-                            };
-                        })
-                        .collect();
+                    let accounts: Vec<Account> = rows.iter().map(|r| r.0.clone()).collect();
 
                     return Ok(accounts);
                 }
@@ -229,38 +229,20 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("accounts_fetch_by_type");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.accounts_fetch_by_type($1, $2);")
-                .bind(tenant_id)
-                .bind(type_id)
-                .fetch_all(&pool)
-                .await
+            match sqlx::query_as::<_, AccountItemType>(
+                "select * from acctg.accounts_fetch_by_type($1, $2);",
+            )
+            .bind(tenant_id)
+            .bind(type_id)
+            .fetch_all(&pool)
+            .await
             {
                 Err(e) => {
                     error!("Error fetching accounts: {:?}", e);
                     return Err("Error fetching accounts");
                 }
                 Ok(rows) => {
-                    let accounts: Vec<Account> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_id: uuid::Uuid = r.get("account_id");
-                            let active: bool = r.get("active");
-                            let account_type_id: i16 = r.get("account_type_id");
-                            let account_category_id: i16 = r.get("account_category_id");
-                            let name: String = r.get("name");
-                            let code: String = r.get("code");
-                            let description: String = r.get("description");
-                            return Account {
-                                account_id,
-                                active,
-                                account_type_id,
-                                account_category_id,
-                                name,
-                                code,
-                                description,
-                            };
-                        })
-                        .collect();
+                    let accounts: Vec<Account> = rows.iter().map(|r| r.0.clone()).collect();
 
                     return Ok(accounts);
                 }
@@ -280,40 +262,21 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("accounts_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.accounts_fetch($1, $2, $3);")
-                .bind(tenant_id)
-                .bind(account_type_id)
-                .bind(filter)
-                .fetch_all(&pool)
-                .await
+            match sqlx::query_as::<_, AccountItemType>(
+                "select * from acctg.accounts_fetch($1, $2, $3);",
+            )
+            .bind(tenant_id)
+            .bind(account_type_id)
+            .bind(filter)
+            .fetch_all(&pool)
+            .await
             {
                 Err(e) => {
                     error!("Error fetching accounts: {:?}", e);
                     return Err("Error fetching accounts");
                 }
                 Ok(rows) => {
-                    let accounts: Vec<Account> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_id: uuid::Uuid = r.get("account_id");
-                            let active: bool = r.get("active");
-                            let account_type_id: i16 = r.get("account_type_id");
-                            let account_category_id: i16 = r.get("account_category_id");
-                            let name: String = r.get("name");
-                            let code: String = r.get("code");
-                            let description: String = r.get("description");
-                            return Account {
-                                account_id,
-                                active,
-                                account_type_id,
-                                account_category_id,
-                                name,
-                                code,
-                                description,
-                            };
-                        })
-                        .collect();
-                    // debug!("accounts: {:?}", accounts);
+                    let accounts: Vec<Account> = rows.iter().map(|r| r.0.clone()).collect();
                     return Ok(accounts);
                 }
             }
@@ -357,7 +320,7 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("account_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.account_fetch($1);")
+            match sqlx::query_as::<_, AccountItemType>("select * from acctg.account_fetch($1);")
                 .bind(account_id)
                 .fetch_one(&pool)
                 .await
@@ -367,28 +330,37 @@ impl AccountsProvider for AccountsProviderPostgres {
                     return Err("Error fetching account");
                 }
                 Ok(r) => {
-                    if r.is_empty() {
-                        return Err("Account not found");
-                    }
-                    let account_id: uuid::Uuid = r.get("account_id");
-                    let active: bool = r.get("active");
-                    let account_type_id: i16 = r.get("account_type_id");
-                    let account_category_id: i16 = r.get("account_category_id");
-                    let name: String = r.get("name");
-                    let code: String = r.get("code");
-                    let description: String = r.get("description");
+                    return Ok(r.0);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 
-                    let account = Account {
-                        account_id,
-                        active,
-                        account_type_id,
-                        account_category_id,
-                        name,
-                        code,
-                        description,
-                    };
-                    // debug!("accounts: {:?}", accounts);
-                    return Ok(account);
+    async fn account_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> Result<Account, &'static str> {
+        info!("account_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, AccountItemType>(
+                "select * from acctg.account_fetch_by_name($1, $2);",
+            )
+            .bind(tenant_id)
+            .bind(&name)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching account: {:?}", e);
+                    return Err("Error fetching account");
+                }
+                Ok(r) => {
+                    return Ok(r.0);
                 }
             }
         } else {
@@ -404,38 +376,19 @@ impl AccountsProvider for AccountsProviderPostgres {
         info!("accounts_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.account_fetch_children($1);")
-                .bind(account_id)
-                .fetch_all(&pool)
-                .await
+            match sqlx::query_as::<_, AccountItemType>(
+                "select * from acctg.account_fetch_children($1);",
+            )
+            .bind(account_id)
+            .fetch_all(&pool)
+            .await
             {
                 Err(e) => {
                     error!("Error fetching accounts: {:?}", e);
                     return Err("Error fetching accounts");
                 }
                 Ok(rows) => {
-                    let accounts: Vec<Account> = rows
-                        .iter()
-                        .map(|r| {
-                            let account_id: uuid::Uuid = r.get("account_id");
-                            let active: bool = r.get("active");
-                            let account_type_id: i16 = r.get("account_type_id");
-                            let account_category_id: i16 = r.get("account_category_id");
-                            let name: String = r.get("name");
-                            let code: String = r.get("code");
-                            let description: String = r.get("description");
-                            return Account {
-                                account_id,
-                                active,
-                                account_type_id,
-                                account_category_id,
-                                name,
-                                code,
-                                description,
-                            };
-                        })
-                        .collect();
-                    // debug!("accounts: {:?}", accounts);
+                    let accounts: Vec<Account> = rows.iter().map(|r| r.0.clone()).collect();
                     return Ok(accounts);
                 }
             }
@@ -449,6 +402,7 @@ impl AccountsProvider for AccountsProviderPostgres {
         &self,
         tenant_id: &uuid::Uuid,
         account: &Account,
+        parent_account_id: &uuid::Uuid,
     ) -> Result<(), &'static str> {
         info!("account_save");
 
@@ -466,6 +420,21 @@ impl AccountsProvider for AccountsProviderPostgres {
                 .await
             {
                 Ok(_) => {
+                    // save account hierarchy
+                    match sqlx::query("call acctg.account_hierarchy_save($1, $2, $3);")
+                        .bind(&tenant_id)
+                        .bind(&account.account_id)
+                        .bind(&parent_account_id)
+                        .execute(&pool)
+                        .await
+                    {
+                        Err(e) => {
+                            error!("Error setting parent account: {:?}", e);
+                            return Err("Error setting parent account");
+                        }
+                        Ok(_) => {}
+                    }
+
                     return Ok(());
                 }
                 Err(e) => {
@@ -518,6 +487,13 @@ mod tests {
             assert!(false, "unable to fetch account categories");
         }
 
+        // fetch asset account id
+        let asset_account_id = app
+            .account_fetch_by_name(&tenant_id, "ASSET")
+            .await
+            .unwrap()
+            .account_id;
+
         let account_id = uuid::Uuid::new_v4();
 
         if let Err(e) = app
@@ -532,6 +508,7 @@ mod tests {
                     code: name.clone(),
                     description: name.clone(),
                 },
+                &asset_account_id,
             )
             .await
         {

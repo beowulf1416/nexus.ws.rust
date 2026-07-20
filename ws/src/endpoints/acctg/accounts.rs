@@ -314,6 +314,7 @@ async fn account_fetch_post(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AccountSavePostData {
     account: acctg_provider::accounts::Account,
+    parent_account_id: uuid::Uuid,
 }
 
 async fn account_save_post(
@@ -328,7 +329,10 @@ async fn account_save_post(
 
     let tenant_id = user.tenant().tenant_id();
 
-    match app.account_save(&tenant_id, &params.account).await {
+    match app
+        .account_save(&tenant_id, &params.account, &params.parent_account_id)
+        .await
+    {
         Err(e) => {
             error!("unable to save account: {}", e);
             return HttpResponse::InternalServerError()

@@ -77,6 +77,12 @@ pub trait AccountsProvider {
         account_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<Account, &'static str>> + Send;
 
+    fn account_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> impl Future<Output = Result<Account, &'static str>> + Send;
+
     fn account_fetch_children(
         &self,
         account_id: &uuid::Uuid,
@@ -86,5 +92,6 @@ pub trait AccountsProvider {
         &self,
         tenant_id: &uuid::Uuid,
         account: &Account,
+        parent_account_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
