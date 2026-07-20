@@ -29,5 +29,7 @@ members = [
     "libs/crm_provider_postgres",
     "libs/acctg_provider",
     "libs/acctg_provider_postgres",
+    "libs/providers/organizations_provider",
+    "libs/providers/organizations_provider_postgres",
     "ws"
 ]

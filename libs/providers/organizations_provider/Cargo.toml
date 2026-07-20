@@ -1,0 +1,13 @@
+[package]
+name = "organizations_provider"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "*", features = ["v4", "serde"] }
+chrono = { version = "*", features = ["serde"] }
+serde = "*"
+serde_json = "*"
+
+# projects
+database_provider = { path = "../../database_provider" }

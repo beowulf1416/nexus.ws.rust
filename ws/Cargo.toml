@@ -73,3 +73,6 @@ crm_provider_postgres = { path = "../libs/crm_provider_postgres" }
 
 acctg_provider = { path = "../libs/acctg_provider" }
 acctg_provider_postgres = { path = "../libs/acctg_provider_postgres" }
+
+organizations_provider = { path = "../libs/providers/organizations_provider" }
+organizations_provider_postgres = { path = "../libs/providers/organizations_provider_postgres" }
