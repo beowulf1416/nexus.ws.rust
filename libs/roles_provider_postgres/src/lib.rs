@@ -1,37 +1,24 @@
 #![allow(clippy::needless_return)]
 
-use tracing::{
-    info,
-    error,
-    debug
-};
+use tracing::{debug, error, info};
 
 use sqlx::Row;
 
-
-
 pub struct PostgresRolesProvider {
-    dp: database_provider::DatabaseProvider
+    dp: database_provider::DatabaseProvider,
 }
 
-
 impl PostgresRolesProvider {
-    pub fn new(
-        dp: &database_provider::DatabaseProvider
-     ) -> Self {
-        return Self {
-            dp: dp.clone()
-        };
+    pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
+        return Self { dp: dp.clone() };
     }
 }
 
-
 impl roles_provider::RolesProvider for PostgresRolesProvider {
-
     async fn save(
         &self,
         tenant_id: &uuid::Uuid,
-        role: &roles_provider::Role
+        role: &roles_provider::Role,
     ) -> Result<(), &'static str> {
         info!("save");
 
@@ -42,27 +29,23 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role.name.clone())
                 .bind(role.description.clone())
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error saving role record: {:?}", e);
-                        return Err("Error saving role record");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error saving role record: {:?}", e);
+                    return Err("Error saving role record");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
-    async fn set_active(
-        &self,
-        role_id: &uuid::Uuid,
-        active: &bool
-    ) -> Result<(), &'static str> {
+    async fn set_active(&self, role_id: &uuid::Uuid, active: &bool) -> Result<(), &'static str> {
         info!("save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
@@ -70,26 +53,26 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_id)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error setting active state of role: {:?}", e);
-                        return Err("Error setting active state of role");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error setting active state of role: {:?}", e);
+                    return Err("Error setting active state of role");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn set_active_multiple(
         &self,
         role_ids: &Vec<uuid::Uuid>,
-        active: &bool
+        active: &bool,
     ) -> Result<(), &'static str> {
         info!("set_active_multiple");
 
@@ -98,26 +81,26 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_ids)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error setting active state of roles: {:?}", e);
-                        return Err("Error setting active state of roles");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error setting active state of roles: {:?}", e);
+                    return Err("Error setting active state of roles");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn fetch(
         &self,
         tenant_id: &uuid::Uuid,
-        filter: &str
+        filter: &str,
     ) -> Result<Vec<roles_provider::Role>, &'static str> {
         info!("fetch");
 
@@ -126,9 +109,12 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(tenant_id)
                 .bind(filter)
                 .fetch_all(&pool)
-                .await {
-                    Ok(rows ) => {
-                        let roles: Vec<roles_provider::Role> = rows.iter().map(|r| {
+                .await
+            {
+                Ok(rows) => {
+                    let roles: Vec<roles_provider::Role> = rows
+                        .iter()
+                        .map(|r| {
                             let role_id: uuid::Uuid = r.get("role_id");
                             let active: bool = r.get("active");
                             let created: chrono::DateTime<chrono::Utc> = r.get("created");
@@ -140,16 +126,17 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                                 name,
                                 description,
                                 active,
-                                created
+                                created,
                             };
-                        }).collect();
-                        return Ok(roles);
-                    }
-                    Err(e) => {
-                        error!("Error fetching role records: {:?}", e);
-                        return Err("Error fetching role records");
-                    }
+                        })
+                        .collect();
+                    return Ok(roles);
                 }
+                Err(e) => {
+                    error!("Error fetching role records: {:?}", e);
+                    return Err("Error fetching role records");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -158,7 +145,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
 
     async fn fetch_by_id(
         &self,
-        role_id: &uuid::Uuid
+        role_id: &uuid::Uuid,
     ) -> Result<roles_provider::Role, &'static str> {
         info!("fetch_by_id");
 
@@ -166,38 +153,38 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
             match sqlx::query("select * from tenants.role_fetch($1);")
                 .bind(role_id)
                 .fetch_one(&pool)
-                .await {
-                    Ok(r) => {
-                        let role_id: uuid::Uuid = r.get("role_id");
-                        let active: bool = r.get("active");
-                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
-                        let name: String = r.get("name");
-                        let description: String = r.get("description");
+                .await
+            {
+                Ok(r) => {
+                    let role_id: uuid::Uuid = r.get("role_id");
+                    let active: bool = r.get("active");
+                    let created: chrono::DateTime<chrono::Utc> = r.get("created");
+                    let name: String = r.get("name");
+                    let description: String = r.get("description");
 
-                        return Ok(roles_provider::Role {
-                            role_id,
-                            name,
-                            description,
-                            active,
-                            created
-                        });
-                    }
-                    Err(e) => {
-                        error!("Error fetching role record: {:?}", e);
-                        return Err("Error fetching role record");
-                    }
+                    return Ok(roles_provider::Role {
+                        role_id,
+                        name,
+                        description,
+                        active,
+                        created,
+                    });
                 }
+                Err(e) => {
+                    error!("Error fetching role record: {:?}", e);
+                    return Err("Error fetching role record");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn assign_users(
         &self,
         role_ids: &Vec<uuid::Uuid>,
-        user_ids: &Vec<uuid::Uuid>
+        user_ids: &Vec<uuid::Uuid>,
     ) -> Result<(), &'static str> {
         info!("assign_users");
 
@@ -206,15 +193,16 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_ids)
                 .bind(user_ids)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error assigning users to role: {:?}", e);
-                        return Err("Error assigning users to role");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error assigning users to role: {:?}", e);
+                    return Err("Error assigning users to role");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -224,7 +212,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
     async fn revoke_users(
         &self,
         role_ids: &Vec<uuid::Uuid>,
-        user_ids: &Vec<uuid::Uuid>
+        user_ids: &Vec<uuid::Uuid>,
     ) -> Result<(), &'static str> {
         info!("revoke_users");
 
@@ -233,27 +221,27 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_ids)
                 .bind(user_ids)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error revoking users from role: {:?}", e);
-                        return Err("Error revoking users from role");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error revoking users from role: {:?}", e);
+                    return Err("Error revoking users from role");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn role_user_set_active(
         &self,
         role_id: &uuid::Uuid,
         user_id: &uuid::Uuid,
-        active: &bool
+        active: &bool,
     ) -> Result<(), &'static str> {
         info!("revoke_users");
 
@@ -263,27 +251,27 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(user_id)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error setting active state of role: {:?}", e);
-                        return Err("Error setting active state of role");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error setting active state of role: {:?}", e);
+                    return Err("Error setting active state of role");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn tenant_user_set_active(
         &self,
         tenant_id: &uuid::Uuid,
         user_id: &uuid::Uuid,
-        active: &bool
+        active: &bool,
     ) -> Result<(), &'static str> {
         info!("revoke_users");
 
@@ -293,26 +281,26 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(user_id)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error setting active state of tenant users: {:?}", e);
-                        return Err("Error setting active state of tenant users");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error setting active state of tenant users: {:?}", e);
+                    return Err("Error setting active state of tenant users");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn assign_permissions(
         &self,
         role_ids: &Vec<uuid::Uuid>,
-        permission_ids: &Vec<i32>
+        permission_ids: &Vec<i32>,
     ) -> Result<(), &'static str> {
         info!("assign_permissions");
 
@@ -321,26 +309,26 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_ids)
                 .bind(permission_ids)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error assigning permissions for role: {:?}", e);
-                        return Err("Error assigning permissions for role");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error assigning permissions for role: {:?}", e);
+                    return Err("Error assigning permissions for role");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn revoke_permissions(
         &self,
         role_ids: &Vec<uuid::Uuid>,
-        permission_ids: &Vec<i32>
+        permission_ids: &Vec<i32>,
     ) -> Result<(), &'static str> {
         info!("revoke_permissions");
 
@@ -349,15 +337,16 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(role_ids)
                 .bind(permission_ids)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error revoking permissions from role: {:?}", e);
-                        return Err("Error revoking permissions from role");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error revoking permissions from role: {:?}", e);
+                    return Err("Error revoking permissions from role");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -368,7 +357,7 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
         &self,
         role_id: &uuid::Uuid,
         permission_ids: &Vec<i32>,
-        active: bool
+        active: bool,
     ) -> Result<(), &'static str> {
         info!("revoke_permissions");
 
@@ -378,23 +367,22 @@ impl roles_provider::RolesProvider for PostgresRolesProvider {
                 .bind(permission_ids)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error setting active state of role permission: {:?}", e);
-                        return Err("Error setting active state of role permission");
-                    }
-                    Ok(_) => {
-                        return Ok(());
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error setting active state of role permission: {:?}", e);
+                    return Err("Error setting active state of role permission");
                 }
+                Ok(_) => {
+                    return Ok(());
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -419,7 +407,10 @@ mod tests {
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-        if let Err(e) = tp.tenant_save(&tenant_id, &tenant_name, &tenant_description).await {
+        if let Err(e) = tp
+            .tenant_save(&tenant_id, &tenant_name, &tenant_description, &0)
+            .await
+        {
             error!("unable to create tenant: {:?}", e);
             assert!(false, "unable to create tenant");
         }
@@ -433,7 +424,7 @@ mod tests {
             name: role_name,
             description: String::from(role_description),
             active: true,
-            created: chrono::Utc::now()
+            created: chrono::Utc::now(),
         };
 
         let rp = PostgresRolesProvider::new(&dp);
@@ -453,27 +444,20 @@ mod tests {
             assert!(false, "unable to fetch roles");
         }
 
-        if let Err(e) = rp.assign_permissions(
-            &vec!(role_id),
-            &vec!(1)
-        ).await {
+        if let Err(e) = rp.assign_permissions(&vec![role_id], &vec![1]).await {
             error!("unable to assign permission to role: {}", e);
             assert!(false, "unable to assign permission to role");
         }
 
-        if let Err(e) = rp.revoke_permissions(
-            &vec!(role_id),
-            &vec!(1)
-        ).await {
+        if let Err(e) = rp.revoke_permissions(&vec![role_id], &vec![1]).await {
             error!("unable to revoke permission from role: {}", e);
             assert!(false, "unable to revoke permission from role");
         }
 
-        if let Err(e) = rp.role_permission_set_active(
-            &role_id,
-            &vec!(1,2),
-            true
-        ).await {
+        if let Err(e) = rp
+            .role_permission_set_active(&role_id, &vec![1, 2], true)
+            .await
+        {
             error!("unable to revoke permission from role: {}", e);
             assert!(false, "unable to revoke permission from role");
         }
