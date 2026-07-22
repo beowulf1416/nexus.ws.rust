@@ -16,6 +16,25 @@ impl<'r> FromRow<'r, PgRow> for OrganizationDataItem {
     }
 }
 
+struct OrganizationNodeDataItem(pub tenants_provider::organizations::OrganizationNodeData);
+
+impl<'r> FromRow<'r, PgRow> for OrganizationNodeDataItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(
+            tenants_provider::organizations::OrganizationNodeData {
+                org_id: row.get("org_id"),
+                parent_org_id: row.get("parent_org_id"),
+                active: row.get("active"),
+                created: row.get("created"),
+                updated: row.get("updated"),
+                name: row.get("name"),
+                description: row.get("description"),
+                level: row.get("level"),
+            },
+        ));
+    }
+}
+
 pub struct OrganizationsProviderPostgres {
     dp: database_provider::DatabaseProvider,
 }
@@ -94,6 +113,35 @@ impl tenants_provider::organizations::OrganizationsProvider for OrganizationsPro
         }
     }
 
+    async fn fetch_tree(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> Result<Vec<tenants_provider::organizations::OrganizationNodeData>, &'static str> {
+        info!("fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, OrganizationNodeDataItem>(
+                "select * from organizations.organizations_fetch_tree($1);",
+            )
+            .bind(tenant_id)
+            .fetch_all(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching organizations: {:?}", e);
+                    return Err("Error fetching organizations");
+                }
+                Ok(rows) => {
+                    let organizations = rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(organizations);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn fetch_by_id(
         &self,
         org_id: &uuid::Uuid,
@@ -149,7 +197,7 @@ mod tests {
             .tenant_id();
 
         let org_id = uuid::Uuid::new_v4();
-        let parent_org_id = opp.fetch_by_id(&tenant_id).await.unwrap().organization_id;
+        let parent_org_id = opp.fetch_by_id(&tenant_id).await.unwrap().org_id;
         let name = format!("test_{}", rand::random::<u16>());
         let description = "tenants_provider_postgres_test";
         let version = 0;
@@ -172,6 +220,11 @@ mod tests {
         if let Err(e) = opp.fetch(&tenant_id, &"%").await {
             error!(e);
             assert!(false, "unable to fetch organizations");
+        }
+
+        if let Err(e) = opp.fetch_tree(&tenant_id).await {
+            error!(e);
+            assert!(false, "unable to fetch organization tree");
         }
     }
 }

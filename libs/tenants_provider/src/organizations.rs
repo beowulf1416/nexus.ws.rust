@@ -12,6 +12,18 @@ pub struct OrganizationData {
     pub description: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct OrganizationNodeData {
+    pub org_id: Uuid,
+    pub parent_org_id: Option<Uuid>,
+    pub active: bool,
+    pub created: chrono::DateTime<chrono::Utc>,
+    pub updated: chrono::DateTime<chrono::Utc>,
+    pub name: String,
+    pub description: String,
+    pub level: i32,
+}
+
 pub trait OrganizationsProvider {
     fn save(
         &self,
@@ -28,6 +40,11 @@ pub trait OrganizationsProvider {
         tenant_id: &uuid::Uuid,
         filter: &str,
     ) -> impl Future<Output = Result<Vec<OrganizationData>, &'static str>> + Send;
+
+    fn fetch_tree(
+        &self,
+        tenant_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<OrganizationNodeData>, &'static str>> + Send;
 
     fn fetch_by_id(
         &self,
