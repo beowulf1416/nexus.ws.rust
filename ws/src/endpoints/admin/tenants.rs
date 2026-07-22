@@ -1,35 +1,15 @@
-use tracing::{
-    info,
-    debug,
-    error
-};
-use std::sync::Arc;
+use actix_web::{HttpResponse, Responder, guard, http, web};
 use serde::Deserialize;
 use serde_json::json;
-use actix_web::{
-    http,
-    web,
-    guard,
-    HttpResponse,
-    Responder
-};
+use std::sync::Arc;
+use tracing::{debug, error, info};
 
-
-use crate::endpoints::{
-    ApiResponse,
-    default_option_response
-};
+use crate::endpoints::{ApiResponse, default_option_response};
 use crate::middleware::permissions::Permission;
 
+use roles_provider::{Role, RolesProvider};
 use tenants_provider::TenantsProvider;
 use users_provider::UsersProvider;
-use roles_provider::{
-    Role,
-    RolesProvider
-};
-
-
-
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg
@@ -127,16 +107,14 @@ pub fn config(cfg: &mut web::ServiceConfig) {
     ;
 }
 
-
-
 #[derive(Debug, Deserialize)]
 struct AdminTenantFetchById {
-    tenant_id: uuid::Uuid
+    tenant_id: uuid::Uuid,
 }
 
 async fn admin_tenants_fetch_id(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<AdminTenantFetchById>
+    params: web::Json<AdminTenantFetchById>,
 ) -> impl Responder {
     info!("admin_tenants_fetch_id");
 
@@ -149,62 +127,58 @@ async fn admin_tenants_fetch_id(
                 .json(ApiResponse::error("unable to fetch tenant by id"));
         }
         Ok(tenant) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    &"successfully retrieved tenant by id",
-                    Some(json!({
-                        "tenant": tenant
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                &"successfully retrieved tenant by id",
+                Some(json!({
+                    "tenant": tenant
+                })),
+            ));
         }
     }
 }
-
-
 
 #[derive(Debug, Deserialize)]
 struct AdminTenantSavePost {
     tenant_id: uuid::Uuid,
     name: String,
-    description: String
+    description: String,
+    version: Option<i32>,
 }
-
 
 async fn admin_tenants_save(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<AdminTenantSavePost>
+    params: web::Json<AdminTenantSavePost>,
 ) -> impl Responder {
     info!("admin_tenants_save");
 
     let atp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-    if let Err(e) = atp.tenant_save(
-        &params.tenant_id,
-        &params.name,
-        &params.description
-    ).await {
+    if let Err(e) = atp
+        .tenant_save(
+            &params.tenant_id,
+            &params.name,
+            &params.description,
+            &params.version.unwrap_or(0),
+        )
+        .await
+    {
         error!("unable to save tenant: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("unable to save tenant"));
     }
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+    return HttpResponse::Ok().json(ApiResponse::ok("success"));
 }
-
-
-
 
 #[derive(Debug, Deserialize)]
 struct AdminTenantsFetchPost {
-    filter: String
+    filter: String,
 }
 
 async fn admin_tenants_fetch(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<AdminTenantsFetchPost>
+    params: web::Json<AdminTenantsFetchPost>,
 ) -> impl Responder {
     info!("admin_tenants_fetch");
 
@@ -212,80 +186,70 @@ async fn admin_tenants_fetch(
 
     let filter = format!("%{}%", params.filter);
 
-    match atp.tenants_fetch(
-        filter.as_str()
-    ).await {
+    match atp.tenants_fetch(filter.as_str()).await {
         Err(e) => {
             error!("unable to fetch tenant records: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to fetch tenant records"));
         }
         Ok(tenants) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    "successfully retrieved tenant records",
-                    Some(json!({
-                        "tenants": tenants
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully retrieved tenant records",
+                Some(json!({
+                    "tenants": tenants
+                })),
+            ));
         }
     }
 }
 
-
-
-
 #[derive(Debug, Deserialize)]
 struct AdminTenantUsersPost {
     tenant_id: uuid::Uuid,
-    filter: String
+    filter: String,
 }
 
 async fn admin_tenants_fetch_users(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<AdminTenantUsersPost>
+    params: web::Json<AdminTenantUsersPost>,
 ) -> impl Responder {
     info!("admin_tenants_fetch_users");
 
     let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
-    match up.tenant_users_fetch(
-        &params.tenant_id,
-        format!("%{}%", params.filter).as_str()
-    ).await {
+    match up
+        .tenant_users_fetch(&params.tenant_id, format!("%{}%", params.filter).as_str())
+        .await
+    {
         Err(e) => {
             error!("unable to fetch tenant users: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to fetch tenant users"));
         }
         Ok(users) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    "successfully retrieved tenant users",
-                    Some(json!({
-                        "users": users
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully retrieved tenant users",
+                Some(json!({
+                    "users": users
+                })),
+            ));
         }
     }
 }
-
-
-
 
 #[derive(Debug, Deserialize)]
 struct RoleSavePost {
     tenant_id: uuid::Uuid,
     role_id: uuid::Uuid,
     name: String,
-    description: String
+    description: String,
 }
 
 async fn admin_role_save_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleSavePost>
+    params: web::Json<RoleSavePost>,
 ) -> impl Responder {
     info!("admin_role_save_post");
 
@@ -296,25 +260,20 @@ async fn admin_role_save_post(
         name: params.name.clone(),
         description: params.description.clone(),
         active: true,
-        created: chrono::Utc::now()
+        created: chrono::Utc::now(),
     };
 
-    match rp.save(
-        &params.tenant_id,
-        &role
-    ).await {
+    match rp.save(&params.tenant_id, &role).await {
         Err(e) => {
             error!("unable to add role: {:?}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to add role"));
         }
         Ok(_) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::ok("successfully added role"));
+            return HttpResponse::Ok().json(ApiResponse::ok("successfully added role"));
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 struct RoleFetchPost {
@@ -323,149 +282,133 @@ struct RoleFetchPost {
 
 async fn admin_role_fetch_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleFetchPost>
+    params: web::Json<RoleFetchPost>,
 ) -> impl Responder {
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.fetch_by_id(
-        &params.role_id
-    ).await {
+    match rp.fetch_by_id(&params.role_id).await {
         Err(e) => {
             error!("unable to fetch role: {:?}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to fetch role"));
         }
         Ok(role) => {
-	        return HttpResponse::Ok()
-	            .json(ApiResponse::new(
-	                true,
-	                &"successfully retrieved role by id",
-	                Some(json!({
-	                    "role": role
-	                }))
-	            ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                &"successfully retrieved role by id",
+                Some(json!({
+                    "role": role
+                })),
+            ));
         }
     }
 }
 
-
-
 #[derive(Debug, Deserialize)]
 struct RolesFetchPost {
     tenant_id: uuid::Uuid,
-    filter: String
+    filter: String,
 }
 
 async fn admin_roles_fetch_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RolesFetchPost>
+    params: web::Json<RolesFetchPost>,
 ) -> impl Responder {
     info!("admin_roles_fetch_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.fetch(
-        &params.tenant_id,
-        // &params.filter
-        format!("%{}%", params.filter).as_str()
-    ).await {
+    match rp
+        .fetch(
+            &params.tenant_id,
+            // &params.filter
+            format!("%{}%", params.filter).as_str(),
+        )
+        .await
+    {
         Err(e) => {
             error!("unable to fetch roles: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to fetch roles"));
         }
         Ok(roles) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    "successfully fetched roles",
-                    Some(json!({
-                        "roles": roles
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched roles",
+                Some(json!({
+                    "roles": roles
+                })),
+            ));
         }
     }
 }
 
-
-
 #[derive(Debug, Deserialize)]
 struct RoleFetchIdPost {
-    role_id: uuid::Uuid
+    role_id: uuid::Uuid,
 }
 
 async fn admin_roles_fetch_id_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleFetchIdPost>
+    params: web::Json<RoleFetchIdPost>,
 ) -> impl Responder {
     info!("admin_roles_fetch_id_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.fetch_by_id(
-        &params.role_id
-    ).await {
+    match rp.fetch_by_id(&params.role_id).await {
         Err(e) => {
             error!("unable to fetch role: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to fetch role"));
         }
         Ok(role) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    "successfully fetched role",
-                    Some(json!({
-                        "role": role
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched role",
+                Some(json!({
+                    "role": role
+                })),
+            ));
         }
     }
 }
 
-
 #[derive(Debug, Deserialize)]
 struct RoleUserAssignmentPost {
     role_ids: Vec<uuid::Uuid>,
-    user_ids: Vec<uuid::Uuid>
+    user_ids: Vec<uuid::Uuid>,
 }
 
 async fn admin_role_assign_users_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleUserAssignmentPost>
+    params: web::Json<RoleUserAssignmentPost>,
 ) -> impl Responder {
     info!("admin_role_assign_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.assign_users(
-        &params.role_ids,
-        &params.user_ids
-    ).await {
+    match rp.assign_users(&params.role_ids, &params.user_ids).await {
         Err(e) => {
             error!("unable to assign role to users: {}", e);
             return HttpResponse::InternalServerError()
                 .json(ApiResponse::error("unable to assign role to users"));
         }
         Ok(_) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::ok("successfully assigned role to users"));
+            return HttpResponse::Ok().json(ApiResponse::ok("successfully assigned role to users"));
         }
     }
 }
 
 async fn admin_role_revoke_users_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RoleUserAssignmentPost>
+    params: web::Json<RoleUserAssignmentPost>,
 ) -> impl Responder {
     info!("admin_role_revoke_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.revoke_users(
-        &params.role_ids,
-        &params.user_ids
-    ).await {
+    match rp.revoke_users(&params.role_ids, &params.user_ids).await {
         Err(e) => {
             error!("unable to revoke role from users: {}", e);
             return HttpResponse::InternalServerError()
@@ -478,26 +421,24 @@ async fn admin_role_revoke_users_post(
     }
 }
 
-
-
 #[derive(Debug, Deserialize)]
 struct RolePermissionsAssignmentPost {
     role_ids: Vec<uuid::Uuid>,
-    permission_ids: Vec<i32>
+    permission_ids: Vec<i32>,
 }
 
 async fn admin_role_assign_permissions_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RolePermissionsAssignmentPost>
+    params: web::Json<RolePermissionsAssignmentPost>,
 ) -> impl Responder {
     info!("admin_role_assign_permissions_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.assign_permissions(
-        &params.role_ids,
-        &params.permission_ids
-    ).await {
+    match rp
+        .assign_permissions(&params.role_ids, &params.permission_ids)
+        .await
+    {
         Err(e) => {
             error!("unable to assign permissions to role: {}", e);
             return HttpResponse::InternalServerError()
@@ -510,19 +451,18 @@ async fn admin_role_assign_permissions_post(
     }
 }
 
-
 async fn admin_role_revoke_permissions_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<RolePermissionsAssignmentPost>
+    params: web::Json<RolePermissionsAssignmentPost>,
 ) -> impl Responder {
     info!("admin_role_revoke_permissions_post");
 
     let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-    match rp.revoke_permissions(
-        &params.role_ids,
-        &params.permission_ids
-    ).await {
+    match rp
+        .revoke_permissions(&params.role_ids, &params.permission_ids)
+        .await
+    {
         Err(e) => {
             error!("unable to revoke permissions from role: {}", e);
             return HttpResponse::InternalServerError()
@@ -535,25 +475,24 @@ async fn admin_role_revoke_permissions_post(
     }
 }
 
-
 #[derive(Debug, Deserialize)]
 struct AdminTenantSetActive {
     tenant_ids: Vec<uuid::Uuid>,
-    active: bool
+    active: bool,
 }
 
 async fn admin_tenants_set_active(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<AdminTenantSetActive>
+    params: web::Json<AdminTenantSetActive>,
 ) -> impl Responder {
     info!("admin_tenants_set_active");
 
     let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-    match tp.tenants_set_active(
-        &params.tenant_ids,
-        &params.active
-    ).await {
+    match tp
+        .tenants_set_active(&params.tenant_ids, &params.active)
+        .await
+    {
         Err(e) => {
             error!("unable to set tenants active state: {}", e);
             return HttpResponse::InternalServerError()
@@ -566,25 +505,24 @@ async fn admin_tenants_set_active(
     }
 }
 
-
 #[derive(Debug, Deserialize)]
 struct AdminRolesSetActivePost {
     role_ids: Vec<uuid::Uuid>,
-    active: bool
+    active: bool,
 }
 
 async fn admin_roles_set_active_post(
-	dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-	params: web::Json<AdminRolesSetActivePost>
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    params: web::Json<AdminRolesSetActivePost>,
 ) -> impl Responder {
-	info!("admin_roles_set_active_post");
+    info!("admin_roles_set_active_post");
 
-	let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
+    let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
 
-	match rp.set_active_multiple(
-        &params.role_ids,
-        &params.active
-    ).await {
+    match rp
+        .set_active_multiple(&params.role_ids, &params.active)
+        .await
+    {
         Err(e) => {
             error!("unable to set active state for roles: {}", e);
             return HttpResponse::InternalServerError()
@@ -596,8 +534,6 @@ async fn admin_roles_set_active_post(
         }
     }
 }
-
-
 
 /*
 #[derive(Debug, Deserialize)]
@@ -641,11 +577,10 @@ async fn tenant_users_fetch_post(
 
 #[cfg(test)]
 mod tests {
+    use roles_provider::RolesProvider;
+    use tenants_provider::TenantsProvider;
     use tracing::error;
     use users_provider::UsersProvider;
-    use tenants_provider::TenantsProvider;
-    use roles_provider::RolesProvider;
-
 
     #[actix_web::test]
     async fn test_create_test_accounts() {
@@ -664,7 +599,10 @@ mod tests {
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
 
-        if let Err(e) = tp.tenant_save(&tenant_id, &tenant_name, &tenant_description).await {
+        if let Err(e) = tp
+            .tenant_save(&tenant_id, &tenant_name, &tenant_description, &0)
+            .await
+        {
             error!(e);
             assert!(false, "unable to save tenant record");
         }
@@ -686,7 +624,17 @@ mod tests {
 
         let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
-        if let Err(e) = up.save(&user_id, &user_first_name, &user_middle_name, &user_last_name, &user_prefix, &user_suffix).await {
+        if let Err(e) = up
+            .save(
+                &user_id,
+                &user_first_name,
+                &user_middle_name,
+                &user_last_name,
+                &user_prefix,
+                &user_suffix,
+            )
+            .await
+        {
             error!(e);
             assert!(false, "unable to save user");
         }
@@ -702,14 +650,10 @@ mod tests {
         }
 
         // assign user to tenant
-        if let Err(e) = up.tenant_assign(
-            &vec![user_id],
-            &vec![tenant_id]
-        ).await {
+        if let Err(e) = up.tenant_assign(&vec![user_id], &vec![tenant_id]).await {
             error!(e);
             assert!(false, "unable to fetch assign users to tenants");
         }
-
 
         // roles
         let role_id = uuid::Uuid::new_v4();
@@ -721,7 +665,7 @@ mod tests {
             name: role_name,
             description: String::from(role_description),
             active: true,
-            created: chrono::Utc::now()
+            created: chrono::Utc::now(),
         };
 
         let rp = roles_provider_postgres::PostgresRolesProvider::new(&dp);
@@ -731,10 +675,7 @@ mod tests {
             assert!(false, "unable to create role");
         }
 
-        if let Err(e) = rp.assign_permissions(
-            &vec!(role_id),
-            &vec!(1)
-        ).await {
+        if let Err(e) = rp.assign_permissions(&vec![role_id], &vec![1]).await {
             error!("unable to assign permission to role: {}", e);
             assert!(false, "unable to assign permission to role");
         }

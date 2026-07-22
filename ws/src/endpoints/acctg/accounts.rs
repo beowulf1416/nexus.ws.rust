@@ -10,7 +10,7 @@ use actix_web::{HttpResponse, Responder, guard, http, web};
 
 use crate::{
     classes::user,
-    endpoints::{ApiResponse, acctg, default_option_response},
+    endpoints::{ApiResponse, default_option_response},
 };
 
 use acctg_provider::accounts::AccountsProvider;
