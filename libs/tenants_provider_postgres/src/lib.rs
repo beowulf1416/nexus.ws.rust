@@ -1,146 +1,139 @@
 #![allow(clippy::needless_return)]
 
-use tracing::{
-    info,
-    debug,
-    error
-};
+pub mod organizations;
 
-use sqlx::{Row, types::chrono};
+use tracing::{debug, error, info};
+
+use sqlx::{Row, postgres::PgRow, prelude::FromRow, types::chrono};
 use std::vec::Vec;
+use uuid::Uuid;
 
+struct TenantItem(pub tenants_provider::Tenant);
 
-pub struct PostgresTenantsProvider {
-    dp: database_provider::DatabaseProvider
-}
-
-
-impl PostgresTenantsProvider {
-    pub fn new(
-        dp: &database_provider::DatabaseProvider
-     ) -> Self {
-        return Self {
-            dp: dp.clone()
-        };
+impl<'r> FromRow<'r, PgRow> for TenantItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(tenants_provider::Tenant {
+            id: row.get("tenant_id"),
+            active: row.get("active"),
+            version: row.get("version"),
+            created: row.get("created"),
+            updated: row.get("updated"),
+            name: row.get("name"),
+            description: row.get("description"),
+        }));
     }
 }
 
+struct PermissionItem(pub tenants_provider::Permission);
 
+impl<'r> FromRow<'r, PgRow> for PermissionItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(tenants_provider::Permission {
+            id: row.get("permission_id"),
+            name: row.get("name"),
+        }));
+    }
+}
+
+pub struct PostgresTenantsProvider {
+    dp: database_provider::DatabaseProvider,
+}
+
+impl PostgresTenantsProvider {
+    pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
+        return Self { dp: dp.clone() };
+    }
+}
 
 impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
-
     async fn tenants_fetch_by_id(
         &self,
-        tenant_id: &uuid::Uuid
+        tenant_id: &uuid::Uuid,
     ) -> Result<tenants_provider::Tenant, &'static str> {
         info!("tenants_fetch_by_id");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from tenants.tenants_fetch_by_id($1);")
+            match sqlx::query_as::<_, TenantItem>("select * from tenants.tenants_fetch_by_id($1);")
                 .bind(tenant_id)
                 .fetch_one(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error fetching tenant record: {:?}", e);
-                        return Err("Error fetching tenant record");
-                    }
-                    Ok(r) => {
-                        let tenant_id: uuid::Uuid = r.get("tenant_id");
-                        let active: bool = r.get("active");
-                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
-                        let name: String = r.get("name");
-                        let description: String = r.get("description");
-
-                        return Ok(tenants_provider::Tenant::new(
-                            &tenant_id,
-                            active,
-                            &created,
-                            &name,
-                            &description
-                        ));
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching tenant record: {:?}", e);
+                    return Err("Error fetching tenant record");
                 }
+                Ok(r) => {
+                    return Ok(r.0);
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn tenant_fetch_by_name(
         &self,
-        name: &str
+        name: &str,
     ) -> Result<tenants_provider::Tenant, &'static str> {
         info!("tenant_fetch_by_name");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from tenants.tenant_fetch_by_name($1);")
+            match sqlx::query_as::<_, TenantItem>("select * from tenants.tenant_fetch_by_name($1);")
                 .bind(name)
                 .fetch_one(&pool)
-                .await {
-                    Err(e) => {
-                        error!("Error fetching tenant record by name: {:?}", e);
-                        return Err("Error fetching tenant record by name");
-                    }
-                    Ok(r) => {
-                        let tenant_id: uuid::Uuid = r.get("tenant_id");
-                        let active: bool = r.get("active");
-                        let created: chrono::DateTime<chrono::Utc> = r.get("created");
-                        let name: String = r.get("name");
-                        let description: String = r.get("description");
-
-
-
-                        return Ok(tenants_provider::Tenant::new(
-                            &tenant_id,
-                            active,
-                            &created,
-                            &name,
-                            &description
-                        ));
-                    }
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching tenant record by name: {:?}", e);
+                    return Err("Error fetching tenant record by name");
                 }
+                Ok(r) => {
+                    return Ok(r.0);
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
-
 
     async fn tenant_save(
         &self,
         tenant_id: &uuid::Uuid,
         name: &str,
-        description: &str
+        description: &str,
+        version: &i32,
     ) -> Result<(), &'static str> {
         info!("tenant_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call tenants.tenant_save($1,$2,$3);")
+            match sqlx::query("call tenants.tenant_save($1,$2,$3,$4);")
                 .bind(tenant_id)
                 .bind(name)
                 .bind(description)
+                .bind(version)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error saving tenant record: {:?}", e);
-                        return Err("Error saving tenant record");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error saving tenant record: {:?}", e);
+                    return Err("Error saving tenant record");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn tenant_set_active(
         &self,
         tenant_id: &uuid::Uuid,
-        active: &bool
+        active: &bool,
     ) -> Result<(), &'static str> {
         info!("tenant_set_active");
 
@@ -149,26 +142,26 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                 .bind(tenant_id)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error setting tenant active state: {:?}", e);
-                        return Err("Error setting tenant active state");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error setting tenant active state: {:?}", e);
+                    return Err("Error setting tenant active state");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn tenants_set_active(
         &self,
         tenant_ids: &Vec<uuid::Uuid>,
-        active: &bool
+        active: &bool,
     ) -> Result<(), &'static str> {
         info!("tenants_set_active");
 
@@ -177,56 +170,43 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
                 .bind(tenant_ids)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error setting tenants active state: {:?}", e);
-                        return Err("Error setting tenants active state");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error setting tenants active state: {:?}", e);
+                    return Err("Error setting tenants active state");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn tenants_fetch(
         &self,
-        filter: &str
+        filter: &str,
     ) -> Result<Vec<tenants_provider::Tenant>, &'static str> {
         info!("tenants_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from tenants.tenants_fetch($1);")
+            match sqlx::query_as::<_, TenantItem>("select * from tenants.tenants_fetch($1);")
                 .bind(filter)
                 .fetch_all(&pool)
-                .await {
-                    Ok(rows) => {
-                        let tenants: Vec<tenants_provider::Tenant> = rows.iter().map(|r| {
-                            let tenant_id: uuid::Uuid = r.get("tenant_id");
-                            let active: bool = r.get("active");
-                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
-                            let name: String = r.get("name");
-                            let description: String = r.get("description");
-
-                            return tenants_provider::Tenant::new(
-                                &tenant_id,
-                                active,
-                                &created,
-                                name.as_str(),
-                                description.as_str()
-                            );
-                        }).collect();
-                        return Ok(tenants);
-                    }
-                    Err(e) => {
-                        error!("Error fetching tenant records: {:?}", e);
-                        return Err("Error fetching tenant records");
-                    }
+                .await
+            {
+                Ok(rows) => {
+                    let tenants = rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(tenants);
                 }
+                Err(e) => {
+                    error!("Error fetching tenant records: {:?}", e);
+                    return Err("Error fetching tenant records");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -235,38 +215,28 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
 
     async fn tenant_user_tenants_fetch(
         &self,
-        user_id: &uuid::Uuid
+        user_id: &uuid::Uuid,
     ) -> Result<Vec<tenants_provider::Tenant>, &'static str> {
         info!("tenant_user_fetch_tenants");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from tenants.tenant_user_fetch_tenants($1);")
-                .bind(user_id)
-                .fetch_all(&pool)
-                .await {
-                    Ok(rows) => {
-                        let tenants: Vec<tenants_provider::Tenant> = rows.iter().map(|r| {
-                            let tenant_id: uuid::Uuid = r.get("tenant_id");
-                            let active: bool = r.get("active");
-                            let created: chrono::DateTime<chrono::Utc> = r.get("created");
-                            let name: String = r.get("name");
-                            let description: String = r.get("description");
-
-                            return tenants_provider::Tenant::new(
-                                &tenant_id,
-                                active,
-                                &created,
-                                name.as_str(),
-                                description.as_str()
-                            );
-                        }).collect();
-                        return Ok(tenants);
-                    }
-                    Err(e) => {
-                        error!("Error fetching tenant records: {:?}", e);
-                        return Err("Error fetching tenant records");
-                    }
+            match sqlx::query_as::<_, TenantItem>(
+                "select * from tenants.tenant_user_fetch_tenants($1);",
+            )
+            .bind(user_id)
+            .fetch_all(&pool)
+            .await
+            {
+                Ok(rows) => {
+                    let tenants: Vec<tenants_provider::Tenant> =
+                        rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(tenants);
                 }
+                Err(e) => {
+                    error!("Error fetching tenant records: {:?}", e);
+                    return Err("Error fetching tenant records");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -276,43 +246,35 @@ impl tenants_provider::TenantsProvider for PostgresTenantsProvider {
     async fn tenant_user_permissions_fetch(
         &self,
         user_id: &uuid::Uuid,
-        tenant_id: &uuid::Uuid
+        tenant_id: &uuid::Uuid,
     ) -> Result<Vec<tenants_provider::Permission>, &'static str> {
         info!("tenant_user_permissions_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from tenants.tenant_user_fetch_permissions($1, $2);")
-                .bind(user_id)
-                .bind(tenant_id)
-                .fetch_all(&pool)
-                .await {
-                    Ok(rows) => {
-                        let permissions: Vec<tenants_provider::Permission> = rows.iter().map(|r| {
-                            let permission_id: i32 = r.get("permission_id");
-                            let name: String = r.get("name");
-
-                            return tenants_provider::Permission::new(
-                                &permission_id,
-                                name.as_str()
-                            );
-                        }).collect();
-                        return Ok(permissions);
-                    }
-                    Err(e) => {
-                        error!("Error fetching permissions: {:?}", e);
-                        return Err("Error fetching permissions");
-                    }
+            match sqlx::query_as::<_, PermissionItem>(
+                "select * from tenants.tenant_user_fetch_permissions($1, $2);",
+            )
+            .bind(user_id)
+            .bind(tenant_id)
+            .fetch_all(&pool)
+            .await
+            {
+                Ok(rows) => {
+                    let permissions: Vec<tenants_provider::Permission> =
+                        rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(permissions);
                 }
+                Err(e) => {
+                    error!("Error fetching permissions: {:?}", e);
+                    return Err("Error fetching permissions");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
-
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -335,7 +297,7 @@ mod tests {
 
         let tp = PostgresTenantsProvider::new(&dp);
 
-        if let Err(e) = tp.tenant_save(&tenant_id, &name, &description).await {
+        if let Err(e) = tp.tenant_save(&tenant_id, &name, &description, &0).await {
             error!(e);
             assert!(false, "unable to save tenant record");
         }
