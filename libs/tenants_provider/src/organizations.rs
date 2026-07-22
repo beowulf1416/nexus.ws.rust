@@ -1,12 +1,13 @@
 use tracing::{debug, error, info};
 
 use core::future::Future;
+use serde::Serialize;
 use std::vec::Vec;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OrganizationData {
-    pub organization_id: Uuid,
+    pub org_id: Uuid,
     pub name: String,
     pub description: String,
 }

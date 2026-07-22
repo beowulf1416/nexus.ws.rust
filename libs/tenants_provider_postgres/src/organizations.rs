@@ -9,7 +9,7 @@ struct OrganizationDataItem(pub tenants_provider::organizations::OrganizationDat
 impl<'r> FromRow<'r, PgRow> for OrganizationDataItem {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         return Ok(Self(tenants_provider::organizations::OrganizationData {
-            organization_id: row.get("org_id"),
+            org_id: row.get("org_id"),
             name: row.get("name"),
             description: row.get("description"),
         }));
