@@ -86,6 +86,10 @@ async fn main() -> std::io::Result<()> {
                     .configure(crate::endpoints::admin::tenants::config),
             )
             .service(
+                web::scope("/api/v1/organizations")
+                    .configure(crate::endpoints::organizations::config),
+            )
+            .service(
                 web::scope("/api/v1/admin/users").configure(crate::endpoints::admin::users::config),
             )
             // .service(web::scope("/documents").configure(crate::endpoints::documents::config))
