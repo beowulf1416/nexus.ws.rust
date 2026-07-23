@@ -104,7 +104,6 @@ async fn partner_save_post(
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PartnersFetchPostData {
-    tenant_id: uuid::Uuid,
     filter: String,
 }
 
@@ -117,12 +116,10 @@ async fn partners_fetch_post(
 
     let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
 
+    let tenant_id = user.tenant().tenant_id();
     let filter = format!("%{}%", params.filter);
 
-    match crm_provider
-        .partners_fetch(&params.tenant_id, &filter)
-        .await
-    {
+    match crm_provider.partners_fetch(&tenant_id, &filter).await {
         Err(e) => {
             error!("unable to fetch permissions: {}", e);
             return HttpResponse::InternalServerError()
