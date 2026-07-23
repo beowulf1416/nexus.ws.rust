@@ -2,7 +2,10 @@
 
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::{Encode, Row, Type, postgres::PgHasArrayType, postgres::types::PgMoney};
+use sqlx::{
+    Encode, Row, Type, postgres::PgHasArrayType, postgres::PgRow, postgres::types::PgMoney,
+    prelude::FromRow,
+};
 use tracing::{debug, error, info};
 
 use acctg_provider::invoice::{Invoice, InvoiceItem, InvoiceProvider, InvoiceType};
@@ -20,6 +23,36 @@ pub struct InvoiceItemDerived {
     pub currency_id: i32,
 }
 
+struct InvoiceTypeData(pub InvoiceType);
+
+impl<'r> FromRow<'r, PgRow> for InvoiceTypeData {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(InvoiceType {
+            id: row.get("invoice_type_id"),
+            name: row.get("name"),
+        }));
+    }
+}
+
+struct InvoiceData(pub Invoice);
+
+impl<'r> FromRow<'r, PgRow> for InvoiceData {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(Invoice {
+            invoice_id: row.get("invoice_id"),
+            invoice_type_id: row.get("invoice_type_id"),
+            invoice_id_seq: row.get("invoice_id_seq"),
+            active: row.get("active"),
+            version: row.get("version"),
+            created: row.get("created_ts"),
+            updated: row.get("updated_ts"),
+            due_date: row.get("due_date_ts"),
+            description: row.get("description"),
+            items: Vec::new(),
+        }));
+    }
+}
+
 pub struct InvoiceProviderPostgres {
     dp: database_provider::DatabaseProvider,
 }
@@ -35,28 +68,17 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         info!("invoice_types_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.invoice_types_fetch();")
+            match sqlx::query_as::<_, InvoiceTypeData>("select * from acctg.invoice_types_fetch();")
                 .fetch_all(&pool)
                 .await
             {
-                Ok(rows) => {
-                    let types: Vec<InvoiceType> = rows
-                        .iter()
-                        .map(|r| {
-                            let invoice_type_id: i16 = r.get("invoice_type_id");
-                            let name: String = r.get("name");
-                            return InvoiceType {
-                                id: invoice_type_id,
-                                name,
-                            };
-                        })
-                        .collect();
-
-                    return Ok(types);
-                }
                 Err(e) => {
                     error!("Error fetching invoice types: {:?}", e);
                     return Err("Error fetching invoice types");
+                }
+                Ok(rows) => {
+                    let types: Vec<InvoiceType> = rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(types);
                 }
             }
         } else {
@@ -74,36 +96,14 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         // debug!("tenant_id: {:?}, filter: {}", tenant_id, filter);
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.invoices_fetch($1,$2);")
+            match sqlx::query_as::<_, InvoiceData>("select * from acctg.invoices_fetch($1,$2);")
                 .bind(tenant_id)
                 .bind(filter)
                 .fetch_all(&pool)
                 .await
             {
                 Ok(rows) => {
-                    let invoices: Vec<Invoice> = rows
-                        .iter()
-                        .map(|r| {
-                            let invoice_id: uuid::Uuid = r.get("invoice_id");
-                            let invoice_type_id: i16 = r.get("invoice_type_id");
-                            let invoice_id_seq: i32 = r.get("invoice_id_seq");
-                            let active: bool = r.get("active");
-                            let created_at: chrono::DateTime<chrono::Utc> = r.get("created_ts");
-                            let due_date: Option<chrono::DateTime<chrono::Utc>> =
-                                r.get("due_date_ts");
-                            let description: String = r.get("description");
-                            return Invoice {
-                                invoice_id: invoice_id,
-                                invoice_type_id: invoice_type_id,
-                                invoice_id_seq: invoice_id_seq,
-                                active: active,
-                                created_at: created_at,
-                                due_date: due_date,
-                                description: description,
-                                items: Vec::new(),
-                            };
-                        })
-                        .collect();
+                    let invoices: Vec<Invoice> = rows.iter().map(|r| r.0.clone()).collect();
 
                     return Ok(invoices);
                 }
@@ -122,29 +122,13 @@ impl InvoiceProvider for InvoiceProviderPostgres {
         info!("invoice_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from acctg.invoice_fetch($1);")
+            match sqlx::query_as::<_, InvoiceData>("select * from acctg.invoice_fetch($1);")
                 .bind(invoice_id)
                 .fetch_one(&pool)
                 .await
             {
                 Ok(row) => {
-                    let invoice_id: uuid::Uuid = row.get("invoice_id");
-                    let invoice_type_id: i16 = row.get("invoice_type_id");
-                    let invoice_id_seq: i32 = row.get("invoice_id_seq");
-                    let active: bool = row.get("active");
-                    let created_at: chrono::DateTime<chrono::Utc> = row.get("created_ts");
-                    let due_date: Option<chrono::DateTime<chrono::Utc>> = row.get("due_date_ts");
-                    let description: String = row.get("description");
-                    return Ok(Invoice {
-                        invoice_id: invoice_id,
-                        invoice_type_id: invoice_type_id,
-                        invoice_id_seq: invoice_id_seq,
-                        active: active,
-                        created_at: created_at,
-                        due_date: due_date,
-                        description: description,
-                        items: Vec::new(),
-                    });
+                    return Ok(row.0.clone());
                 }
                 Err(e) => {
                     error!("Error fetching invoices: {:?}", e);
@@ -172,20 +156,19 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                     item_id: item.item_id,
                     description: item.description.clone(),
                     quantity: item.quantity,
-                    // uom_id: item.uom_id,
                     unit_price: item.unit_price,
-                    // total: item.total,
                     currency_id: item.currency_id,
                 })
                 .collect::<Vec<InvoiceItemDerived>>();
 
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6);")
+            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7);")
                 .bind(tenant_id)
                 .bind(&invoice.invoice_id)
                 .bind(&invoice.invoice_type_id)
                 .bind(&invoice.description)
                 .bind(&invoice.due_date)
                 .bind(&derived_items)
+                .bind(&invoice.version)
                 .execute(&pool)
                 .await
             {
@@ -285,8 +268,10 @@ mod tests {
             description: String::from("test invoice 1"),
 
             invoice_id_seq: 0,
-            created_at: today.to_utc(),
+            created: today.to_utc(),
+            updated: today.to_utc(),
             active: true,
+            version: 0,
             items: vec![
                 InvoiceItem {
                     item_id: uuid::Uuid::new_v4(),

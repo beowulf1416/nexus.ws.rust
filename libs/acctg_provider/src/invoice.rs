@@ -3,7 +3,7 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InvoiceType {
     pub id: i16,
     pub name: String,
@@ -20,14 +20,16 @@ pub struct InvoiceItem {
     pub currency_id: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Invoice {
     pub invoice_id: uuid::Uuid,
     pub invoice_type_id: i16,
     pub invoice_id_seq: i32,
 
     pub active: bool,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub version: i32,
+    pub created: chrono::DateTime<chrono::Utc>,
+    pub updated: chrono::DateTime<chrono::Utc>,
 
     pub due_date: Option<chrono::DateTime<chrono::Utc>>,
     pub description: String,
