@@ -170,8 +170,8 @@ struct InvoiceSavePostData {
     invoice_type_id: i16,
     due_date: Option<chrono::DateTime<chrono::Utc>>,
     description: String,
-    // currency_id: i32,
     items: Vec<InvoiceItem>,
+    version: i32,
 }
 
 async fn invoice_save_post(
@@ -188,52 +188,19 @@ async fn invoice_save_post(
         invoice_type_id: params.invoice_type_id,
         invoice_id_seq: 0,
         active: true,
-        created_at: chrono::Utc::now(),
+        version: params.version,
+        created: chrono::Utc::now(),
+        updated: chrono::Utc::now(),
         due_date: params.due_date,
         description: params.description.clone(),
-        // currency_id: params.currency_id,
-        // items: params
-        //     .items
-        //     .clone()
-        //     .into_iter()
-        //     .map(|i| InvoiceItem {
-        //         item_id: i.item_id,
-        //         description: i.description.clone(),
-        //         quantity: i.quantity,
-        //         // uom_id: i.uom_id,
-        //         unit_price: i.unit_price,
-        //         total: i.total,
-        //         currency_id: i.currency_id,
-        //     })
-        //     .collect(),
         items: params.items.clone(),
     };
-
-    // match ipp.invoice_save(&user.tenant().tenant_id(), &invoice).await {
-    //     Err(e) => {
-    //         error!("unable to save invoice: {}", e);
-    //         return HttpResponse::InternalServerError()
-    //             .json(ApiResponse::error("unable to save invoice"));
-    //     }
-    //     Ok(_) => {
-    //         return HttpResponse::Ok().json(ApiResponse::ok("todo"));
-    //     }
-    // }
 
     if let Err(e) = ipp.invoice_save(&user.tenant().tenant_id(), &invoice).await {
         error!("unable to save invoice: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("unable to save invoice"));
     }
-
-    // if let Err(e) = ipp
-    //     .invoice_items_save(&params.invoice_id, &params.items)
-    //     .await
-    // {
-    //     error!("unable to save invoice items: {}", e);
-    //     return HttpResponse::InternalServerError()
-    //         .json(ApiResponse::error("unable to save invoice items"));
-    // }
 
     return HttpResponse::Ok().json(ApiResponse::ok("successfully saved invoice"));
 }
