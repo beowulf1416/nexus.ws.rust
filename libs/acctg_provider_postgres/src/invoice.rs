@@ -21,6 +21,7 @@ pub struct InvoiceItemDerived {
     pub unit_price: Decimal,
     // pub total: Decimal,
     pub currency_id: i32,
+    pub version: i32,
 }
 
 struct InvoiceTypeData(pub InvoiceType);
@@ -51,7 +52,7 @@ impl<'r> FromRow<'r, PgRow> for InvoiceData {
             updated: row.get("updated_ts"),
             due_date: row.get("due_date_ts"),
             description: row.get("description"),
-            items: Vec::new(),
+            items: Vec::new(), // todo
         }));
     }
 }
@@ -161,6 +162,7 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                     quantity: item.quantity,
                     unit_price: item.unit_price,
                     currency_id: item.currency_id,
+                    version: item.version,
                 })
                 .collect::<Vec<InvoiceItemDerived>>();
 
@@ -308,8 +310,9 @@ mod tests {
                     quantity: Decimal::new(15, 1),
                     // uom_id: 1,
                     unit_price: Decimal::new(100, 2),
-                    total: Decimal::new(100, 2),
+                    // total: Decimal::new(100, 2),
                     currency_id: 1,
+                    version: 0,
                 },
                 InvoiceItem {
                     item_id: uuid::Uuid::new_v4(),
@@ -317,8 +320,9 @@ mod tests {
                     quantity: Decimal::new(25, 1),
                     // uom_id: 1,
                     unit_price: Decimal::new(200, 2),
-                    total: Decimal::new(400, 2),
+                    // total: Decimal::new(400, 2),
                     currency_id: 1,
+                    version: 0,
                 },
             ],
         };
