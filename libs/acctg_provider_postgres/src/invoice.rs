@@ -13,7 +13,7 @@ use acctg_provider::invoice::{Invoice, InvoiceItem, InvoiceProvider, InvoiceType
 #[derive(Debug, Serialize, Deserialize, Type)]
 #[sqlx(type_name = "acctg.invoice_item_type")]
 pub struct InvoiceItemDerived {
-    pub item_id: uuid::Uuid,
+    pub invoice_item_id: uuid::Uuid,
     pub description: String,
     pub quantity: Decimal,
     // pub uom_id: i32,
@@ -156,7 +156,7 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 .items
                 .iter()
                 .map(|item| InvoiceItemDerived {
-                    item_id: item.item_id,
+                    invoice_item_id: item.item_id,
                     description: item.description.clone(),
                     quantity: item.quantity,
                     unit_price: item.unit_price,

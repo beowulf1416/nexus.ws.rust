@@ -27,6 +27,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route(web::post().to(organizations_fetch_tree_post)),
     )
     .service(
+        web::resource("fetch/id")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(organizations_fetch_id_post)),
+    )
+    .service(
         web::resource("save")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(web::post().to(organization_save_post)),
@@ -90,6 +95,40 @@ async fn organizations_fetch_tree_post(
                 "successfully fetched organizations",
                 Some(json!({
                     "organizations": organizations
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct OrganizationsFetchIdPost {
+    org_id: uuid::Uuid,
+}
+
+async fn organizations_fetch_id_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<OrganizationsFetchIdPost>,
+) -> impl Responder {
+    info!("organizations_fetch_id_post");
+
+    let opp = tenants_provider_postgres::organizations::OrganizationsProviderPostgres::new(&dp);
+
+    // let tenant_id = user.tenant().tenant_id();
+
+    match opp.fetch_by_id(&params.org_id).await {
+        Err(e) => {
+            error!("unable to fetch organizations: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch organizations"));
+        }
+        Ok(organization) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched organizations",
+                Some(json!({
+                    "organization": organization
                 })),
             ));
         }
