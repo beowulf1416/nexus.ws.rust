@@ -6,7 +6,26 @@ use tracing::{
     info,
 };
 
-use sqlx::Row;
+use sqlx::{Row, postgres::PgRow, prelude::FromRow};
+
+struct Partnerdata(pub crm_provider::Partner);
+
+impl<'r> FromRow<'r, PgRow> for Partnerdata {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(crm_provider::Partner {
+            partner_id: row.get("partner_id"),
+            active: row.get("active"),
+            created: row.get("created_ts"),
+            business_name: row.get("business_name"),
+            description: row.get("description"),
+            first_name: row.get("first_name"),
+            middle_name: row.get("middle_name"),
+            last_name: row.get("last_name"),
+            prefix: row.get("prefix"),
+            suffix: row.get("suffix"),
+        }));
+    }
+}
 
 pub struct PostgresCrmProvider {
     dp: database_provider::DatabaseProvider,
@@ -40,12 +59,12 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
                 .execute(&pool)
                 .await
             {
-                Ok(_) => {
-                    return Ok(());
-                }
                 Err(e) => {
                     error!("Error saving partner record: {:?}", e);
                     return Err("Error saving partner record");
+                }
+                Ok(_) => {
+                    return Ok(());
                 }
             }
         } else {
@@ -62,47 +81,47 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
         info!("partners_fetch");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from crm.partners_fetch($1, $2);")
+            match sqlx::query_as::<_, Partnerdata>("select * from crm.partners_fetch($1, $2);")
                 .bind(tenant_id)
                 .bind(filter)
                 .fetch_all(&pool)
                 .await
             {
-                Ok(rows) => {
-                    let partners: Vec<crm_provider::Partner> = rows
-                        .iter()
-                        .map(|r| {
-                            let partner_id: uuid::Uuid = r.get("partner_id");
-                            let active: bool = r.get("active");
-                            let created: chrono::DateTime<chrono::Utc> = r.get("created_ts");
-                            let business_name: String = r.get("business_name");
-                            let description: String = r.get("description");
-                            let first_name: String = r.get("first_name");
-                            let middle_name: String = r.get("middle_name");
-                            let last_name: String = r.get("last_name");
-                            let prefix: String = r.get("prefix");
-                            let suffix: String = r.get("suffix");
-
-                            return crm_provider::Partner {
-                                partner_id,
-                                active,
-                                created,
-                                business_name,
-                                description,
-                                first_name,
-                                middle_name,
-                                last_name,
-                                prefix,
-                                suffix,
-                            };
-                        })
-                        .collect();
-
-                    return Ok(partners);
-                }
                 Err(e) => {
                     error!("Error fetching partners: {:?}", e);
                     return Err("Error fetching partners");
+                }
+                Ok(rows) => {
+                    let partners: Vec<crm_provider::Partner> =
+                        rows.iter().map(|r| r.0.clone()).collect();
+
+                    return Ok(partners);
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
+    async fn partner_fetch_by_id(
+        &self,
+        partner_id: &uuid::Uuid,
+    ) -> Result<crm_provider::Partner, &'static str> {
+        info!("partners_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, Partnerdata>("select * from crm.partner_fetch_by_id($1);")
+                .bind(partner_id)
+                .fetch_one(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error fetching partner: {:?}", e);
+                    return Err("Error fetching partner");
+                }
+                Ok(r) => {
+                    return Ok(r.0.clone());
                 }
             }
         } else {

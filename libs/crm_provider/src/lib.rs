@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Partner {
     pub partner_id: uuid::Uuid,
 
@@ -53,6 +53,11 @@ pub trait CrmProvider {
         tenant_id: &uuid::Uuid,
         filter: &str,
     ) -> impl Future<Output = Result<Vec<Partner>, &'static str>> + Send;
+
+    fn partner_fetch_by_id(
+        &self,
+        partner_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Partner, &'static str>> + Send;
 
     fn partners_set_active(
         &self,

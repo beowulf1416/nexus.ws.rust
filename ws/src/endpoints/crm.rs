@@ -38,6 +38,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             ),
     )
     .service(
+        web::resource("partners/fetch/id")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(
+                web::post()
+                    .guard(guard::Header("content-type", "application/json"))
+                    .to(partner_fetch_id_post),
+            ),
+    )
+    .service(
         web::resource("partners/set/active")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(
@@ -131,6 +140,38 @@ async fn partners_fetch_post(
                 "successfully fetched permissions",
                 Some(json!({
                     "partners": partners
+                })),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PartnerFetchIdPost {
+    partner_id: uuid::Uuid,
+}
+
+async fn partner_fetch_id_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<PartnerFetchIdPost>,
+) -> impl Responder {
+    info!("partner_fetch_id_post");
+
+    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+
+    match crm_provider.partner_fetch_by_id(&params.partner_id).await {
+        Err(e) => {
+            error!("unable to fetch partner: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("unable to fetch partner"));
+        }
+        Ok(partner) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "successfully fetched partner",
+                Some(json!({
+                    "partner": partner
                 })),
             ));
         }
