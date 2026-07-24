@@ -42,6 +42,9 @@ impl<'r> FromRow<'r, PgRow> for InvoiceData {
             invoice_id: row.get("invoice_id"),
             invoice_type_id: row.get("invoice_type_id"),
             invoice_id_seq: row.get("invoice_id_seq"),
+            account_id: row.get("account_id"),
+            org_id: row.get("org_id"),
+            partner_id: row.get("partner_id"),
             active: row.get("active"),
             version: row.get("version"),
             created: row.get("created_ts"),
@@ -131,8 +134,8 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                     return Ok(row.0.clone());
                 }
                 Err(e) => {
-                    error!("Error fetching invoices: {:?}", e);
-                    return Err("Error fetching invoices");
+                    error!("Error fetching invoice: {:?}", e);
+                    return Err("Error fetching invoice");
                 }
             }
         } else {
@@ -161,10 +164,13 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 })
                 .collect::<Vec<InvoiceItemDerived>>();
 
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7);")
+            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10);")
                 .bind(tenant_id)
                 .bind(&invoice.invoice_id)
                 .bind(&invoice.invoice_type_id)
+                .bind(&invoice.account_id)
+                .bind(&invoice.org_id)
+                .bind(&invoice.partner_id)
                 .bind(&invoice.description)
                 .bind(&invoice.due_date)
                 .bind(&derived_items)
@@ -232,8 +238,12 @@ impl InvoiceProvider for InvoiceProviderPostgres {
 mod tests {
     use super::*;
 
-    use acctg_provider::invoice::InvoiceProvider;
-    use tenants_provider::TenantsProvider;
+    use acctg_provider::{accounts::AccountsProvider, invoice::InvoiceProvider};
+    use crm_provider::CrmProvider;
+    use tenants_provider::{
+        TenantsProvider,
+        // organizations::OrganizationsProvider
+    };
 
     #[actix_web::test]
     async fn test_invoice() {
@@ -246,6 +256,11 @@ mod tests {
         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
+        // let opp = tenants_provider_postgres::organizations::OrganizationsProviderPostgres::new(&dp);
+
+        let cpp = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+
+        let app = crate::accounts::AccountsProviderPostgres::new(&dp);
         let ipp = InvoiceProviderPostgres::new(&dp);
 
         if let Err(e) = ipp.invoice_types_fetch().await {
@@ -258,12 +273,26 @@ mod tests {
 
         let invoice_id = uuid::Uuid::new_v4();
 
+        let account_id = app
+            .account_fetch_by_name(&tenant_id, "asset")
+            .await
+            .unwrap()
+            .account_id;
+
+        let org_id = tenant_id.clone();
+
+        let partner_id = cpp.partners_fetch(&tenant_id, "%").await.unwrap()[0].partner_id;
+
         let today = chrono::Local::now();
         let due_date = today.checked_add_days(chrono::Days::new(3)).unwrap();
 
         let invoice = Invoice {
             invoice_id: invoice_id,
             invoice_type_id: 1,
+            account_id: account_id,
+            org_id: org_id,
+            partner_id: partner_id,
+
             due_date: Some(due_date.to_utc()),
             description: String::from("test invoice 1"),
 

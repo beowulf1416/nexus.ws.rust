@@ -24,3 +24,6 @@ actix-web = "*"
 config = { path = "../config" }
 tenants_provider = { path = "../tenants_provider" }
 tenants_provider_postgres = { path = "../tenants_provider_postgres" }
+
+crm_provider = { path = "../crm_provider" }
+crm_provider_postgres = { path = "../crm_provider_postgres" }

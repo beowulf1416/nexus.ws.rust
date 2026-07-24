@@ -26,6 +26,10 @@ pub struct Invoice {
     pub invoice_type_id: i16,
     pub invoice_id_seq: i32,
 
+    pub account_id: uuid::Uuid,
+    pub org_id: uuid::Uuid,
+    pub partner_id: uuid::Uuid,
+
     pub active: bool,
     pub version: i32,
     pub created: chrono::DateTime<chrono::Utc>,
