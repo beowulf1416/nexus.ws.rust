@@ -137,9 +137,9 @@ async fn invoice_fetch_post(
 
     match ipp.invoice_fetch(&params.invoice_id).await {
         Err(e) => {
-            error!("unable to fetch invoice types: {}", e);
+            error!("unable to fetch invoice: {}", e);
             return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("unable to fetch invoice types"));
+                .json(ApiResponse::error("unable to fetch invoice"));
         }
         Ok(invoice) => {
             return HttpResponse::Ok().json(ApiResponse::new(

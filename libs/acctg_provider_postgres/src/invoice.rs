@@ -3,26 +3,55 @@
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    Encode, Row, Type, postgres::PgHasArrayType, postgres::PgRow, postgres::types::PgMoney,
+    Decode, Encode, Postgres, Row, Type,
+    postgres::{PgHasArrayType, PgRow, types::PgMoney},
     prelude::FromRow,
 };
 use tracing::{debug, error, info};
 
 use acctg_provider::invoice::{Invoice, InvoiceItem, InvoiceProvider, InvoiceType};
 
+// #[derive(Debug, Serialize, Deserialize, Type)]
+// #[sqlx(type_name = "acctg.invoice_item_type")]
+// struct InvoiceItemDerived(pub InvoiceItem);
+
 #[derive(Debug, Serialize, Deserialize, Type)]
 #[sqlx(type_name = "acctg.invoice_item_type")]
-pub struct InvoiceItemDerived {
+struct InvoiceItemDerived {
     pub invoice_item_id: uuid::Uuid,
+    pub version: i32,
     pub description: String,
     pub quantity: Decimal,
-    // pub uom_id: i32,
-    // #[serde(with = "money_format")]
     pub unit_price: Decimal,
-    // pub total: Decimal,
     pub currency_id: i32,
-    pub version: i32,
 }
+
+impl<'r> FromRow<'r, PgRow> for InvoiceItemDerived {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        // return Ok(Self(InvoiceItem {
+        //     invoice_item_id: row.get("invoice_item_id"),
+        //     version: row.get("version"),
+        //     description: row.get("description"),
+        //     quantity: row.get("quantity"),
+        //     unit_price: row.get("unit_price"),
+        //     currency_id: row.get("currency_id"),
+        // }));
+        return Ok(Self {
+            invoice_item_id: row.get("invoice_item_id"),
+            version: row.get("version"),
+            description: row.get("description"),
+            quantity: row.get("quantity"),
+            unit_price: row.get("unit_price"),
+            currency_id: row.get("currency_id"),
+        });
+    }
+}
+
+// impl From<InvoiceItemDerived> for InvoiceItem {
+//     fn from(item: InvoiceItemDerived) -> Self {
+//         item.0
+//     }
+// }
 
 struct InvoiceTypeData(pub InvoiceType);
 
@@ -39,6 +68,34 @@ struct InvoiceData(pub Invoice);
 
 impl<'r> FromRow<'r, PgRow> for InvoiceData {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        debug!("row: {:?}", row);
+
+        // let items_derived: Vec<InvoiceItemDerived> = row.get("items");
+        // let items = items_derived
+        //     .iter()
+        //     .map(|r| InvoiceItem {
+        //         item_id: r.0.item_id,
+        //         version: r.0.version,
+        //         description: r.0.description,
+        //         quantity: r.0.quantity,
+        //         unit_price: r.0.unit_price,
+        //         currency_id: r.0.currency_id,
+        //     })
+        //     .collect::<Vec<InvoiceItem>>();
+
+        // let items = row
+        //     .get::<VecInvoiceItemDerived>("items")
+        //     .iter()
+        //     .map(|item| InvoiceItem {
+        //         item_id: item.0.item_id,
+        //         version: item.0.version,
+        //         description: item.0.description,
+        //         quantity: item.0.quantity,
+        //         unit_price: item.0.unit_price,
+        //         currency_id: item.0.currency_id,
+        //     })
+        //     .collect::<Vec<InvoiceItem>>();
+
         return Ok(Self(Invoice {
             invoice_id: row.get("invoice_id"),
             invoice_type_id: row.get("invoice_type_id"),
@@ -52,7 +109,7 @@ impl<'r> FromRow<'r, PgRow> for InvoiceData {
             updated: row.get("updated_ts"),
             due_date: row.get("due_date_ts"),
             description: row.get("description"),
-            items: Vec::new(), // todo
+            items: Vec::new(),
         }));
     }
 }
@@ -131,12 +188,54 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 .fetch_one(&pool)
                 .await
             {
-                Ok(row) => {
-                    return Ok(row.0.clone());
-                }
                 Err(e) => {
                     error!("Error fetching invoice: {:?}", e);
                     return Err("Error fetching invoice");
+                }
+                Ok(row) => {
+                    let invoice_items = match sqlx::query_as::<_, InvoiceItemDerived>(
+                        "select * from acctg.invoice_items_fetch($1);",
+                    )
+                    .bind(invoice_id)
+                    .fetch_all(&pool)
+                    .await
+                    {
+                        Ok(rows) => {
+                            let items = rows
+                                .iter()
+                                .map(|r| InvoiceItem {
+                                    invoice_item_id: r.invoice_item_id,
+                                    version: r.version,
+                                    description: r.description.clone(),
+                                    quantity: r.quantity,
+                                    unit_price: r.unit_price,
+                                    currency_id: r.currency_id,
+                                })
+                                .collect::<Vec<InvoiceItem>>();
+                            items
+                        }
+                        Err(e) => {
+                            error!("Error fetching invoice: {:?}", e);
+                            // return Err("Error fetching invoice");
+                            Vec::new()
+                        }
+                    };
+
+                    return Ok(Invoice {
+                        invoice_id: row.0.invoice_id.clone(),
+                        invoice_type_id: row.0.invoice_type_id,
+                        invoice_id_seq: row.0.invoice_id_seq,
+                        account_id: row.0.account_id.clone(),
+                        org_id: row.0.org_id.clone(),
+                        partner_id: row.0.partner_id.clone(),
+                        active: row.0.active,
+                        version: row.0.version,
+                        created: row.0.created,
+                        updated: row.0.updated,
+                        due_date: row.0.due_date,
+                        description: row.0.description.clone(),
+                        items: invoice_items,
+                    });
                 }
             }
         } else {
@@ -157,16 +256,16 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 .items
                 .iter()
                 .map(|item| InvoiceItemDerived {
-                    invoice_item_id: item.item_id,
+                    invoice_item_id: item.invoice_item_id,
+                    version: item.version,
                     description: item.description.clone(),
                     quantity: item.quantity,
                     unit_price: item.unit_price,
                     currency_id: item.currency_id,
-                    version: item.version,
                 })
                 .collect::<Vec<InvoiceItemDerived>>();
 
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10);")
+            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7,$8,$9);")
                 .bind(tenant_id)
                 .bind(&invoice.invoice_id)
                 .bind(&invoice.invoice_type_id)
@@ -175,13 +274,26 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 .bind(&invoice.partner_id)
                 .bind(&invoice.description)
                 .bind(&invoice.due_date)
-                .bind(&derived_items)
+                // .bind(&derived_items)
                 .bind(&invoice.version)
                 .execute(&pool)
                 .await
             {
                 Ok(_) => {
-                    return Ok(());
+                    match sqlx::query("call acctg.invoice_items_save($1,$2);")
+                        .bind(&invoice.invoice_id)
+                        .bind(&derived_items)
+                        .execute(&pool)
+                        .await
+                    {
+                        Ok(_) => {
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            error!("Error saving invoice items: {:?}", e);
+                            return Err("Error saving invoice items");
+                        }
+                    }
                 }
                 Err(e) => {
                     error!("Error saving invoice: {:?}", e);
@@ -305,7 +417,7 @@ mod tests {
             version: 0,
             items: vec![
                 InvoiceItem {
-                    item_id: uuid::Uuid::new_v4(),
+                    invoice_item_id: uuid::Uuid::new_v4(),
                     description: String::from("test item 1"),
                     quantity: Decimal::new(15, 1),
                     // uom_id: 1,
@@ -315,7 +427,7 @@ mod tests {
                     version: 0,
                 },
                 InvoiceItem {
-                    item_id: uuid::Uuid::new_v4(),
+                    invoice_item_id: uuid::Uuid::new_v4(),
                     description: String::from("test item 2"),
                     quantity: Decimal::new(25, 1),
                     // uom_id: 1,

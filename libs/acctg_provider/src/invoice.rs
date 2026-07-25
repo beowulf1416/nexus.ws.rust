@@ -11,14 +11,12 @@ pub struct InvoiceType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InvoiceItem {
-    pub item_id: uuid::Uuid,
+    pub invoice_item_id: uuid::Uuid,
+    pub version: i32,
     pub description: String,
     pub quantity: Decimal,
-    // pub uom_id: i32,
     pub unit_price: Decimal,
-    // pub total: Decimal,
     pub currency_id: i32,
-    pub version: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
