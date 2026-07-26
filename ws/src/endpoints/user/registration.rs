@@ -1,74 +1,49 @@
-use tracing::{
-    info,
-    debug,
-    error
-};
 use std::sync::Arc;
+use tracing::{debug, error, info};
 
-use serde::{
-    Serialize,
-    Deserialize
-};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use rand::{
-	prelude::*,
-    distr::Alphanumeric,
-    Rng
-};
+use rand::{Rng, distr::Alphanumeric, prelude::*};
 
-use actix_web::{
-    http,
-    web,
-    HttpResponse,
-    Responder
-};
+use actix_web::{HttpResponse, Responder, http, web};
 
-use crate::endpoints::{
-    ApiResponse,
-    default_option_response
-};
+use crate::endpoints::{ApiResponse, default_option_response};
 
+use auth_provider::AuthProvider;
 use user_registration::UserRegistrationProvider;
 use users_provider::UsersProvider;
-use auth_provider::AuthProvider;
-
 
 const TOKEN_LENGTH: usize = 32;
 
-
-
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg
-        .service(
-            web::resource("")
-                .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(user_registration_signup_post))
-        )
-        .service(
-            web::resource("verified")
-                .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(user_registration_signup_verified_post))
-        )
-        .service(
-            web::resource("details")
-                .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(user_registration_details_post))
-        )
-    ;
+    cfg.service(
+        web::resource("")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(user_registration_signup_post)),
+    )
+    .service(
+        web::resource("verified")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(user_registration_signup_verified_post)),
+    )
+    .service(
+        web::resource("details")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(user_registration_details_post)),
+    );
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct UserRegistrationSignUpPost {
     id: uuid::Uuid,
-    email: String
+    email: String,
 }
 
 async fn user_registration_signup_post(
     mailer: web::Data<Arc<mailer::Mailer>>,
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<UserRegistrationSignUpPost>
+    params: web::Json<UserRegistrationSignUpPost>,
 ) -> impl Responder {
     info!("user_registration_signup_post");
 
@@ -78,14 +53,9 @@ async fn user_registration_signup_post(
     let mut rng = rand::rng();
     let token: String = (0..TOKEN_LENGTH)
         .map(|_| rng.sample(rand::distr::Alphanumeric) as char)
-        .collect()
-        ;
+        .collect();
 
-    match ur.register_user(
-        &params.id,
-        &params.email,
-        &token
-    ).await {
+    match ur.register_user(&params.id, &params.email, &token).await {
         Ok(_) => {
             info!("User registered successfully");
 
@@ -96,124 +66,103 @@ async fn user_registration_signup_post(
                     .json(ApiResponse::error("email_sending_failed"))
                     ;
             }
-        },
+        }
         Err(e) => {
             error!("Error registering user: {}", e);
             return HttpResponse::InternalServerError()
-                .json(ApiResponse::error("registration failed"))
-                ;
+                .json(ApiResponse::error("registration failed"));
         }
     }
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+    return HttpResponse::Ok().json(ApiResponse::ok("success"));
 }
-
 
 #[derive(Debug, Deserialize)]
 struct UserRegistrationSignUpVerifiedPost {
     register_id: uuid::Uuid,
     token: String,
-    pw: String
+    pw: String,
 }
 
 async fn user_registration_signup_verified_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<UserRegistrationSignUpVerifiedPost>
+    params: web::Json<UserRegistrationSignUpVerifiedPost>,
 ) -> impl Responder {
     info!("user_registration_signup_verified_post");
 
     let ur = user_registration_postgres::PostgresUserRegistrationProvider::new(&dp);
 
     // mark registration record as verified
-    if let Err(e) = ur.verify_registration(
-        &params.register_id,
-        &params.token
-    ).await {
+    if let Err(e) = ur
+        .verify_registration(&params.register_id, &params.token)
+        .await
+    {
         error!("unable to verify user registration: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
 
-    if let Err(e) = ur.fetch_registration_details_by_id(
-        &params.register_id
-    ).await {
+    if let Err(e) = ur
+        .fetch_registration_details_by_id(&params.register_id)
+        .await
+    {
         error!("unable to fetch user registration details: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
-    let urd = match ur.fetch_registration_details_by_id(&params.register_id).await {
-        Ok(r) => {
-            r
-        }
+    let urd = match ur
+        .fetch_registration_details_by_id(&params.register_id)
+        .await
+    {
+        Ok(r) => r,
         Err(e) => {
             error!("unable to fetch user registration details: {}", e);
-            user_registration::UserRegistrationDetails::new(
-                &params.register_id,
-                "",
-                ""
-            )
+            user_registration::UserRegistrationDetails::new(&params.register_id, "", "")
         }
     };
 
     let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
 
     // save initial user details
-    if let Err(e) = up.save(
-        &params.register_id,
-        "",
-        "",
-        "",
-        "",
-        ""
-    ).await {
+    if let Err(e) = up.save(&params.register_id, "", "", "", "", "", &0).await {
         error!("unable to save user details: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
 
     // save user email address
-    if let Err(e) = up.add_email(
-        &params.register_id,
-        urd.email().as_str()
-    ).await {
+    if let Err(e) = up
+        .add_email(&params.register_id, urd.email().as_str())
+        .await
+    {
         error!("unable to save user email: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
-
     }
-
 
     let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
 
     // add user authentication using email and password
-    if let Err(e) = ap.add_user_auth_password(
-        &params.register_id,
-        urd.email().as_str(),
-        &params.pw
-    ).await {
+    if let Err(e) = ap
+        .add_user_auth_password(&params.register_id, urd.email().as_str(), &params.pw)
+        .await
+    {
         error!("unable to add user authentication via password: {}", e);
         return HttpResponse::InternalServerError()
             .json(ApiResponse::error("error while verifying registration"));
     }
 
-
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"));
+    return HttpResponse::Ok().json(ApiResponse::ok("success"));
 }
-
-
 
 #[derive(Debug, Deserialize)]
 struct UserRegistrationDetailsPost {
-    token: String
+    token: String,
 }
-
 
 async fn user_registration_details_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<UserRegistrationDetailsPost>
+    params: web::Json<UserRegistrationDetailsPost>,
 ) -> impl Responder {
     info!("user_registration_details_post");
 
@@ -222,38 +171,28 @@ async fn user_registration_details_post(
 
     match ur.fetch_registration_details_by_token(&params.token).await {
         Ok(urd) => {
-            return HttpResponse::Ok()
-                .json(ApiResponse::new(
-                    true,
-                    "success",
-                    Some(json!({
-                        "details": urd
-                    }))
-                ));
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "success",
+                Some(json!({
+                    "details": urd
+                })),
+            ));
         }
         Err(e) => {
             error!("unable to retrieve user registration details: {:?}", e);
         }
     }
 
-    return HttpResponse::Ok()
-        .json(ApiResponse::ok("success"))
-        ;
+    return HttpResponse::Ok().json(ApiResponse::ok("success"));
 }
-
-
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use actix_web::web;
     use rand::*;
-    use actix_web::{
-        web
-    };
-
 
     #[actix_web::test]
     async fn test_registration_endpoint() {
@@ -263,7 +202,7 @@ mod tests {
 
         let ursp = UserRegistrationSignUpPost {
             id: uuid::Uuid::new_v4(),
-            email: format!("test_{}@test.com", rand::random::<u16>())
+            email: format!("test_{}@test.com", rand::random::<u16>()),
         };
         let params = web::Json(ursp);
 
@@ -271,12 +210,12 @@ mod tests {
         let mailer = mailer::Mailer::new();
         let dp = database_provider::DatabaseProvider::new(&cfg);
 
-
-        let _r  = user_registration_signup_post(
+        let _r = user_registration_signup_post(
             web::Data::new(std::sync::Arc::new(mailer)),
             web::Data::new(std::sync::Arc::new(dp)),
-            params
-        ).await;
+            params,
+        )
+        .await;
         // debug!("result: {:?}", r);
         // assert!(false, "result");
     }

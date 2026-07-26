@@ -25,17 +25,19 @@ impl users_provider::UsersProvider for PostgresUsersProvider {
         last_name: &str,
         prefix: &str,
         suffix: &str,
+        version: &i32,
     ) -> Result<(), &'static str> {
         info!("save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call users.user_save($1,$2,$3,$4,$5,$6);")
+            match sqlx::query("call users.user_save($1,$2,$3,$4,$5,$6,$7);")
                 .bind(user_id)
                 .bind(first_name)
                 .bind(middle_name)
                 .bind(last_name)
                 .bind(prefix)
                 .bind(suffix)
+                .bind(version)
                 .execute(&pool)
                 .await
             {
@@ -420,6 +422,7 @@ mod tests {
                 &last_name,
                 &prefix,
                 &suffix,
+                &0,
             )
             .await
         {

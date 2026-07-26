@@ -632,6 +632,7 @@ mod tests {
                 &user_last_name,
                 &user_prefix,
                 &user_suffix,
+                &0,
             )
             .await
         {
