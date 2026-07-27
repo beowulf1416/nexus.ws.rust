@@ -1,40 +1,27 @@
 #![allow(clippy::needless_return)]
 
-use tracing::{
-    info,
-    debug,
-    error
-};
+use tracing::{debug, error, info};
 
 use sqlx::Row;
 
 const AUTH_TYPE_PW: i32 = 1;
 
-
 pub struct PostgresAuthProvider {
-    dp: database_provider::DatabaseProvider
+    dp: database_provider::DatabaseProvider,
 }
 
-
 impl PostgresAuthProvider {
-    pub fn new(
-        dp: &database_provider::DatabaseProvider
-     ) -> Self {
-        return Self {
-            dp: dp.clone()
-        };
+    pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
+        return Self { dp: dp.clone() };
     }
 }
 
-
-
 impl auth_provider::AuthProvider for PostgresAuthProvider {
-
     async fn add_user_auth_password(
         &self,
         user_id: &uuid::Uuid,
         email: &str,
-        pw: &str
+        pw: &str,
     ) -> Result<(), &'static str> {
         info!("add_user_auth_password");
 
@@ -44,26 +31,26 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
                 .bind(email)
                 .bind(pw)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error adding user authentication using password: {:?}", e);
-                        return Err("Error adding user authentication using password");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error adding user authentication using password: {:?}", e);
+                    return Err("Error adding user authentication using password");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn user_auth_password_set_active(
         &self,
         user_id: &uuid::Uuid,
-        active: bool
+        active: bool,
     ) -> Result<(), &'static str> {
         info!("user_auth_password_set_active");
 
@@ -72,27 +59,26 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
                 .bind(user_id)
                 .bind(active)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error setting user authentication using password active: {:?}", e);
-                        return Err("Error setting user authentication using password active");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!(
+                        "Error setting user authentication using password active: {:?}",
+                        e
+                    );
+                    return Err("Error setting user authentication using password active");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
-    async fn authenticate_by_password(
-        &self,
-        email: &str,
-        pw: &str
-    ) -> Result<bool, &'static str> {
+    async fn authenticate_by_password(&self, email: &str, pw: &str) -> Result<bool, &'static str> {
         info!("authenticate");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
@@ -100,28 +86,28 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
                 .bind(email)
                 .bind(pw)
                 .fetch_one(&pool)
-                .await {
-                    Ok(row) => {
-                        debug!("{:?}", row);
+                .await
+            {
+                Ok(row) => {
+                    debug!("{:?}", row);
 
-                        let authentic = row.get("user_auth_password_authenticate");
-                        return Ok(authentic);
-                    }
-                    Err(e) => {
-                        error!("Error user authentication using password: {:?}", e);
-                        return Err("Error user authentication using password");
-                    }
+                    let authentic = row.get("user_auth_password_authenticate");
+                    return Ok(authentic);
                 }
+                Err(e) => {
+                    error!("Error user authentication using password: {:?}", e);
+                    return Err("Error user authentication using password");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn fetch_user_by_id(
         &self,
-        user_id: &uuid::Uuid
+        user_id: &uuid::Uuid,
     ) -> Result<auth_provider::User, &'static str> {
         info!("fetch_user_by_id");
 
@@ -129,30 +115,27 @@ impl auth_provider::AuthProvider for PostgresAuthProvider {
             match sqlx::query("select * from auth.user_auth_password_fetch($1);")
                 .bind(user_id)
                 .fetch_one(&pool)
-                .await {
-                    Ok(row) => {
-                        debug!("{:?}", row);
+                .await
+            {
+                Ok(row) => {
+                    debug!("{:?}", row);
 
-                        let user_id: uuid::Uuid = row.get("user_id");
-                        let email: String = row.get("email");
+                    let user_id: uuid::Uuid = row.get("user_id");
+                    let email: String = row.get("email");
 
-                        return Ok(auth_provider::User {
-                            user_id,
-                            email
-                        });
-                    }
-                    Err(e) => {
-                        error!("Error user authentication using password: {:?}", e);
-                        return Err("Error user authentication using password");
-                    }
+                    return Ok(auth_provider::User { user_id, email });
                 }
+                Err(e) => {
+                    error!("Error user authentication using password: {:?}", e);
+                    return Err("Error user authentication using password");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -178,7 +161,7 @@ mod tests {
 
         let up = PostgresUsersProvider::new(&dp);
 
-        if let Err(e) = up.save(&user_id, &"", &"", &"", &"", &"").await {
+        if let Err(e) = up.save(&user_id, &"", &"", &"", &"", &"", &0).await {
             error!(e);
             assert!(false, "unable to add user authentication using password");
         }
@@ -192,7 +175,10 @@ mod tests {
 
         if let Err(e) = ap.user_auth_password_set_active(&user_id, true).await {
             error!(e);
-            assert!(false, "unable to set user authentication using password active");
+            assert!(
+                false,
+                "unable to set user authentication using password active"
+            );
         }
 
         if let Err(e) = ap.authenticate_by_password(&email, &pw).await {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct Country {
-    pub id: i32,
+    pub country_id: i32,
     pub name: String,
     pub code_2: String,
     pub code_3: String,

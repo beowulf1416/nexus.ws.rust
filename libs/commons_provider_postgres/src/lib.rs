@@ -33,7 +33,7 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                             let code_3: String = r.get("iso_3166_1_alpha_3");
 
                             return commons_provider::Country {
-                                id: country_id,
+                                country_id: country_id,
                                 name,
                                 code_2,
                                 code_3,
