@@ -1,36 +1,25 @@
 #![allow(clippy::needless_return)]
 
-use tracing::{
-    info,
-    debug,
-    error
-};
+use tracing::{debug, error, info};
 
 use sqlx::Row;
 
-
 pub struct PostgresUserRegistrationProvider {
-    dp: database_provider::DatabaseProvider
+    dp: database_provider::DatabaseProvider,
 }
 
-
 impl PostgresUserRegistrationProvider {
-    pub fn new(
-        dp: &database_provider::DatabaseProvider
-     ) -> Self {
-        return Self {
-            dp: dp.clone()
-        };
+    pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
+        return Self { dp: dp.clone() };
     }
 }
 
 impl user_registration::UserRegistrationProvider for PostgresUserRegistrationProvider {
-
     async fn register_user(
         &self,
         register_id: &uuid::Uuid,
         email: &str,
-        token: &str
+        token: &str,
     ) -> Result<(), &'static str> {
         info!("register_user");
 
@@ -40,15 +29,16 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
                 .bind(email)
                 .bind(token)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error registering user: {:?}", e);
-                        return Err("Error registering user");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error registering user: {:?}", e);
+                    return Err("Error registering user");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -57,33 +47,36 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
 
     async fn fetch_registration_details_by_token(
         &self,
-        token: &str
+        token: &str,
     ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
         info!("fetch_registration_details_by_token");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from user_registration.fetch_registration_details_by_token($1);")
-                .bind(token)
-                .fetch_one(&pool)
-                .await {
-                    Ok(row) => {
-                        debug!("row: {:?}", row);
+            match sqlx::query(
+                "select * from user_registration.fetch_registration_details_by_token($1);",
+            )
+            .bind(token)
+            .fetch_one(&pool)
+            .await
+            {
+                Ok(row) => {
+                    debug!("row: {:?}", row);
 
-                        let register_id: uuid::Uuid = row.get("id");
-                        let email: &str = row.get("email");
-                        let token: &str = row.get("token");
+                    let register_id: uuid::Uuid = row.get("id");
+                    let email: &str = row.get("email");
+                    let token: &str = row.get("token");
 
-                        return Ok(user_registration::UserRegistrationDetails::new(
-                            &register_id,
-                            email,
-                            token
-                        ));
-                    }
-                    Err(e) => {
-                        error!("Error verifying user registration: {:?}", e);
-                        return Err("Error verifying user registration");
-                    }
+                    return Ok(user_registration::UserRegistrationDetails::new(
+                        &register_id,
+                        email,
+                        token,
+                    ));
                 }
+                Err(e) => {
+                    error!("Error verifying user registration: {:?}", e);
+                    return Err("Error verifying user registration");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -92,44 +85,46 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
 
     async fn fetch_registration_details_by_id(
         &self,
-        register_id: &uuid::Uuid
+        register_id: &uuid::Uuid,
     ) -> Result<user_registration::UserRegistrationDetails, &'static str> {
         info!("fetch_registration_details_by_id");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("select * from user_registration.fetch_registration_details_by_id($1);")
-                .bind(register_id)
-                .fetch_one(&pool)
-                .await {
-                    Ok(row) => {
-                        debug!("row: {:?}", row);
+            match sqlx::query(
+                "select * from user_registration.fetch_registration_details_by_id($1);",
+            )
+            .bind(register_id)
+            .fetch_one(&pool)
+            .await
+            {
+                Ok(row) => {
+                    debug!("row: {:?}", row);
 
-                        let register_id: uuid::Uuid = row.get("id");
-                        let email: &str = row.get("email");
-                        let token: &str = row.get("token");
+                    let register_id: uuid::Uuid = row.get("id");
+                    let email: &str = row.get("email");
+                    let token: &str = row.get("token");
 
-                        return Ok(user_registration::UserRegistrationDetails::new(
-                            &register_id,
-                            email,
-                            token
-                        ));
-                    }
-                    Err(e) => {
-                        error!("Error verifying user registration: {:?}", e);
-                        return Err("Error verifying user registration");
-                    }
+                    return Ok(user_registration::UserRegistrationDetails::new(
+                        &register_id,
+                        email,
+                        token,
+                    ));
                 }
+                Err(e) => {
+                    error!("Error verifying user registration: {:?}", e);
+                    return Err("Error verifying user registration");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
         }
     }
 
-
     async fn verify_registration(
         &self,
         register_id: &uuid::Uuid,
-        token: &str
+        token: &str,
     ) -> Result<(), &'static str> {
         info!("verify_registration");
 
@@ -138,15 +133,16 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
                 .bind(register_id)
                 .bind(token)
                 .execute(&pool)
-                .await {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        error!("Error verifying user registration: {:?}", e);
-                        return Err("Error verifying user registration");
-                    }
+                .await
+            {
+                Ok(_) => {
+                    return Ok(());
                 }
+                Err(e) => {
+                    error!("Error verifying user registration: {:?}", e);
+                    return Err("Error verifying user registration");
+                }
+            }
         } else {
             error!("No Postgres pool found for 'main'");
             return Err("Unable to get pool for 'main'");
@@ -154,15 +150,14 @@ impl user_registration::UserRegistrationProvider for PostgresUserRegistrationPro
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::{distr::Alphanumeric, prelude::*};
 
-    use users_provider::UsersProvider;
-    use user_registration::UserRegistrationProvider;
     use auth_provider::AuthProvider;
+    use user_registration::UserRegistrationProvider;
+    use users_provider::UsersProvider;
 
     const TOKEN_LENGTH: usize = 32;
 
@@ -179,10 +174,7 @@ mod tests {
         let register_id = uuid::Uuid::new_v4();
         let email = format!("test_{}@test.com", rand::random::<u16>());
         let mut rng = rand::rng();
-        let token: String = (0..50)
-            .map(|_| rng.sample(Alphanumeric) as char)
-            .collect()
-            ;
+        let token: String = (0..50).map(|_| rng.sample(Alphanumeric) as char).collect();
 
         let ur = PostgresUserRegistrationProvider::new(&dp);
 
@@ -190,7 +182,6 @@ mod tests {
             assert!(false, "error registering user: {}", e);
         }
     }
-
 
     #[actix_web::test]
     async fn test_registration() {
@@ -205,10 +196,7 @@ mod tests {
         let register_id = uuid::Uuid::new_v4();
         let email = format!("test_{}@test.com", rand::random::<u16>());
         let mut rng = rand::rng();
-        let token: String = (0..50)
-            .map(|_| rng.sample(Alphanumeric) as char)
-            .collect()
-            ;
+        let token: String = (0..50).map(|_| rng.sample(Alphanumeric) as char).collect();
 
         let ur = PostgresUserRegistrationProvider::new(&dp);
 
@@ -228,17 +216,17 @@ mod tests {
             assert!(false, "error verifying registrations");
         }
 
-
         let up = users_provider_postgres::PostgresUsersProvider::new(&dp);
-        if let Err(e) = up.save(&register_id, &"", &"", &"", &"", &"").await {
+        if let Err(e) = up.save(&register_id, &"", &"", &"", &"", &"", &0).await {
             assert!(false, "error adding user details");
         }
 
-
         let ap = auth_provider_postgres::PostgresAuthProvider::new(&dp);
-        if let Err(e) = ap.add_user_auth_password(&register_id, &email, &"test1test").await {
+        if let Err(e) = ap
+            .add_user_auth_password(&register_id, &email, &"test1test")
+            .await
+        {
             assert!(false, "error adding user authentication");
         }
-
     }
 }
