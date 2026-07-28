@@ -18,26 +18,32 @@ impl inv_provider::LocationsProvider for LocationsProviderPostgres {
     async fn location_save(
         &self,
         tenant_id: &uuid::Uuid,
+        warehouse_id: &uuid::Uuid,
         location: &inv_provider::Location,
     ) -> Result<(), &'static str> {
         info!("location_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call mm.location_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12);")
-                .bind(tenant_id)
-                .bind(location.location_id)
-                .bind(location.warehouse_id)
-                .bind(location.version)
-                .bind(location.name.clone())
-                .bind(location.description.clone())
-                .bind(location.floor.clone())
-                .bind(location.level.clone())
-                .bind(location.aisle.clone())
-                .bind(location.shelf.clone())
-                .bind(location.bin.clone())
-                .bind(location.pallet.clone())
-                .execute(&pool)
-                .await
+            match sqlx::query(
+                "call mm.location_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15);",
+            )
+            .bind(tenant_id)
+            .bind(warehouse_id)
+            .bind(location.location_id)
+            .bind(location.version)
+            .bind(location.name.clone())
+            .bind(location.description.clone())
+            .bind(location.floor.clone())
+            .bind(location.level.clone())
+            .bind(location.section.clone())
+            .bind(location.row.clone())
+            .bind(location.rack.clone())
+            .bind(location.aisle.clone())
+            .bind(location.shelf.clone())
+            .bind(location.bin.clone())
+            .bind(location.pallet.clone())
+            .execute(&pool)
+            .await
             {
                 Err(e) => {
                     error!("Error saving location record: {:?}", e);
@@ -140,18 +146,24 @@ mod tests {
         let location = Location {
             location_id: location_id,
             version: 0,
-            warehouse_id: warehouse_id,
+            // warehouse_id: warehouse_id,
             name: "Main Location".to_string(),
             description: "Main Location".to_string(),
             floor: "".to_string(),
             level: "".to_string(),
+            section: "".to_string(),
             aisle: "".to_string(),
+            row: "".to_string(),
+            rack: "".to_string(),
             shelf: "".to_string(),
             bin: "".to_string(),
             pallet: "".to_string(),
         };
 
-        if let Err(e) = lpp.location_save(&tenant_id, &location).await {
+        if let Err(e) = lpp
+            .location_save(&tenant_id, &warehouse_id, &location)
+            .await
+        {
             error!("Error saving location: {:?}", e);
             assert!(false, "Error saving location");
         }

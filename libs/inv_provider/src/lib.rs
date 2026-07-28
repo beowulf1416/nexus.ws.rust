@@ -36,12 +36,15 @@ pub struct Warehouse {
 pub struct Location {
     pub location_id: uuid::Uuid,
     pub version: i32,
-    pub warehouse_id: uuid::Uuid,
+    // pub warehouse_id: uuid::Uuid,
     pub name: String,
     pub description: String,
     pub floor: String,
     pub level: String,
+    pub section: String,
     pub aisle: String,
+    pub row: String,
+    pub rack: String,
     pub shelf: String,
     pub bin: String,
     pub pallet: String,
@@ -107,6 +110,7 @@ pub trait LocationsProvider {
     fn location_save(
         &self,
         tenant_id: &uuid::Uuid,
+        warehouse_id: &uuid::Uuid,
         location: &Location,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
