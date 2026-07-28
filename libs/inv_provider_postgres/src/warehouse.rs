@@ -2,7 +2,28 @@
 
 use tracing::{debug, error, info};
 
-use sqlx::Row;
+use sqlx::{Row, postgres::PgRow, prelude::FromRow};
+
+struct WarehouseDataItem(pub inv_provider::Warehouse);
+
+impl<'r> FromRow<'r, PgRow> for WarehouseDataItem {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(inv_provider::Warehouse {
+            id: row.get("warehouse_id"),
+            active: row.get("active"),
+            version: row.get("version"),
+            name: row.get("name"),
+            description: row.get("description"),
+            address: inv_provider::Address {
+                street: row.get("street"),
+                city: row.get("city"),
+                state: row.get("state"),
+                zip_code: row.get("zip_code"),
+                country_id: row.get("country_id"),
+            },
+        }));
+    }
+}
 
 pub struct PostgresWarehouseProvider {
     dp: database_provider::DatabaseProvider,
@@ -70,6 +91,37 @@ impl inv_provider::WarehouseProvider for PostgresWarehouseProvider {
                 }
                 Ok(_) => {
                     return Ok(());
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
+
+    async fn warehouses_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> Result<Vec<inv_provider::Warehouse>, &'static str> {
+        info!("warehouses_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, WarehouseDataItem>(
+                "select * from mm.warehouses_fetch($1,$2);",
+            )
+            .bind(tenant_id)
+            .bind(filter)
+            .fetch_all(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching warehouse records: {:?}", e);
+                    return Err("Error fetching warehouse records");
+                }
+                Ok(rows) => {
+                    let warehouses: Vec<inv_provider::Warehouse> =
+                        rows.into_iter().map(|r| r.0).collect();
+                    return Ok(warehouses);
                 }
             }
         }

@@ -1,3 +1,7 @@
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
     pub id: uuid::Uuid,
     pub active: bool,
@@ -8,6 +12,7 @@ pub struct Item {
     pub upc: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Address {
     pub street: String,
     pub city: String,
@@ -16,6 +21,7 @@ pub struct Address {
     pub country_id: i32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Warehouse {
     pub id: uuid::Uuid,
     pub active: bool,
@@ -26,6 +32,7 @@ pub struct Warehouse {
     pub address: Address,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Location {
     pub id: uuid::Uuid,
     pub warehouse_id: uuid::Uuid,
@@ -70,6 +77,12 @@ pub trait WarehouseProvider {
         warehouse_id: &uuid::Uuid,
         active: &bool,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn warehouses_fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        filter: &str,
+    ) -> impl Future<Output = Result<Vec<Warehouse>, &'static str>> + Send;
 }
 
 pub trait LocationProvider {
