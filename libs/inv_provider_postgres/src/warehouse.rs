@@ -9,7 +9,7 @@ struct WarehouseDataItem(pub inv_provider::Warehouse);
 impl<'r> FromRow<'r, PgRow> for WarehouseDataItem {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         return Ok(Self(inv_provider::Warehouse {
-            id: row.get("warehouse_id"),
+            warehouse_id: row.get("warehouse_id"),
             active: row.get("active"),
             version: row.get("version"),
             name: row.get("name"),
@@ -25,17 +25,17 @@ impl<'r> FromRow<'r, PgRow> for WarehouseDataItem {
     }
 }
 
-pub struct PostgresWarehouseProvider {
+pub struct WarehouseProviderPostgres {
     dp: database_provider::DatabaseProvider,
 }
 
-impl PostgresWarehouseProvider {
+impl WarehouseProviderPostgres {
     pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
         return Self { dp: dp.clone() };
     }
 }
 
-impl inv_provider::WarehouseProvider for PostgresWarehouseProvider {
+impl inv_provider::WarehouseProvider for WarehouseProviderPostgres {
     async fn warehouse_save(
         &self,
         tenant_id: &uuid::Uuid,
@@ -46,7 +46,7 @@ impl inv_provider::WarehouseProvider for PostgresWarehouseProvider {
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
             match sqlx::query("call mm.warehouse_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10);")
                 .bind(tenant_id)
-                .bind(warehouse.id)
+                .bind(warehouse.warehouse_id)
                 .bind(warehouse.name.clone())
                 .bind(warehouse.description.clone())
                 .bind(warehouse.address.street.clone())
@@ -128,6 +128,64 @@ impl inv_provider::WarehouseProvider for PostgresWarehouseProvider {
 
         return Err("No database pool found");
     }
+
+    async fn warehouse_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> Result<inv_provider::Warehouse, &'static str> {
+        info!("warehouses_fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, WarehouseDataItem>(
+                "select * from mm.warehouse_fetch_by_name($1,$2);",
+            )
+            .bind(tenant_id)
+            .bind(name)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching warehouse record by name: {:?}", e);
+                    return Err("Error fetching warehouse record by name");
+                }
+                Ok(row) => {
+                    let warehouse: inv_provider::Warehouse = row.0.clone();
+                    return Ok(warehouse);
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
+
+    async fn warehouse_fetch_by_id(
+        &self,
+        warehouse_id: &uuid::Uuid,
+    ) -> Result<inv_provider::Warehouse, &'static str> {
+        info!("warehouses_fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, WarehouseDataItem>(
+                "select * from mm.warehouse_fetch_by_id($1);",
+            )
+            .bind(warehouse_id)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching warehouse record by id: {:?}", e);
+                    return Err("Error fetching warehouse record by id");
+                }
+                Ok(row) => {
+                    let warehouse: inv_provider::Warehouse = row.0.clone();
+                    return Ok(warehouse);
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
 }
 
 #[cfg(test)]
@@ -138,7 +196,7 @@ mod tests {
     use tenants_provider::TenantsProvider;
 
     #[actix_web::test]
-    async fn test_inventory() {
+    async fn test_inventory_warehouses() {
         if let Err(e) = tracing_subscriber::fmt::try_init() {
             println!("error: {:?}", e);
         }
@@ -147,23 +205,25 @@ mod tests {
         let db_provider = database_provider::DatabaseProvider::new(&cfg);
         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
-        let provider = PostgresWarehouseProvider::new(&dp);
+        let provider = WarehouseProviderPostgres::new(&dp);
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
-        let tenant = tp.tenant_fetch_by_name("default").await.unwrap();
+        let tenant = tp.tenant_fetch_by_name("tenant_01").await.unwrap();
         let tenant_id = tenant.tenant_id();
 
+        let offset = rand::random::<u16>();
+
         let wh = inv_provider::Warehouse {
-            id: uuid::Uuid::new_v4(),
+            warehouse_id: uuid::Uuid::new_v4(),
             active: true,
             version: 0,
-            name: "Main Warehouse".to_string(),
-            description: "The primary warehouse".to_string(),
+            name: format!("Main Warehouse {}", offset),
+            description: format!("Main Warehouse {}", offset),
             address: inv_provider::Address {
-                street: "123 Main St".to_string(),
-                city: "Metropolis".to_string(),
-                state: "NY".to_string(),
-                zip_code: "12345".to_string(),
+                street: format!("street_{}", offset),
+                city: format!("city_{}", offset),
+                state: format!("state_{}", offset),
+                zip_code: format!("zip_{}", offset),
                 country_id: 840, // USA
             },
         };
@@ -171,6 +231,24 @@ mod tests {
         if let Err(e) = provider.warehouse_save(&tenant_id, &wh).await {
             error!("Error saving warehouse: {:?}", e);
             assert!(false, "Error saving warehouse");
+        }
+
+        if let Err(e) = provider.warehouse_set_active(&wh.warehouse_id, &true).await {
+            error!("Error setting warehouse active: {:?}", e);
+            assert!(false, "Error setting warehouse active");
+        }
+
+        if let Err(e) = provider.warehouse_fetch_by_id(&wh.warehouse_id).await {
+            error!("Error fetching warehouse by id: {:?}", e);
+            assert!(false, "Error fetching warehouse by id");
+        }
+
+        if let Err(e) = provider
+            .warehouse_fetch_by_name(&tenant_id, &format!("Main Warehouse {}", offset))
+            .await
+        {
+            error!("Error fetching warehouse by name: {:?}", e);
+            assert!(false, "Error fetching warehouse by name");
         }
     }
 }

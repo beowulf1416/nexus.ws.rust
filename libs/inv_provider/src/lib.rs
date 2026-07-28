@@ -23,7 +23,7 @@ pub struct Address {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Warehouse {
-    pub id: uuid::Uuid,
+    pub warehouse_id: uuid::Uuid,
     pub active: bool,
     pub version: i32,
     pub name: String,
@@ -34,10 +34,17 @@ pub struct Warehouse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Location {
-    pub id: uuid::Uuid,
+    pub location_id: uuid::Uuid,
+    pub version: i32,
     pub warehouse_id: uuid::Uuid,
     pub name: String,
     pub description: String,
+    pub floor: String,
+    pub level: String,
+    pub aisle: String,
+    pub shelf: String,
+    pub bin: String,
+    pub pallet: String,
 }
 
 pub trait InventoryProvider {
@@ -83,9 +90,20 @@ pub trait WarehouseProvider {
         tenant_id: &uuid::Uuid,
         filter: &str,
     ) -> impl Future<Output = Result<Vec<Warehouse>, &'static str>> + Send;
+
+    fn warehouse_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> impl Future<Output = Result<Warehouse, &'static str>> + Send;
+
+    fn warehouse_fetch_by_id(
+        &self,
+        warehouse_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Warehouse, &'static str>> + Send;
 }
 
-pub trait LocationProvider {
+pub trait LocationsProvider {
     fn location_save(
         &self,
         tenant_id: &uuid::Uuid,
