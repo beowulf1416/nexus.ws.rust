@@ -108,6 +108,10 @@ async fn main() -> std::io::Result<()> {
                     .configure(crate::endpoints::inventory::warehouse::config),
             )
             .service(
+                web::scope("/api/v1/inv/locations")
+                    .configure(crate::endpoints::inventory::location::config),
+            )
+            .service(
                 web::scope("/api/v1/inv/items")
                     .configure(crate::endpoints::inventory::item::config),
             );
