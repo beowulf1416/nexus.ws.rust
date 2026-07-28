@@ -54,7 +54,7 @@ async fn warehouse_save_post(
     info!("warehouse_save_post");
     // debug!("params", params);
 
-    let provider = inv_provider_postgres::warehouse::PostgresWarehouseProvider::new(&dp);
+    let provider = inv_provider_postgres::warehouse::WarehouseProviderPostgres::new(&dp);
 
     let tenant_id = user.tenant().tenant_id();
 
@@ -62,7 +62,7 @@ async fn warehouse_save_post(
         .warehouse_save(
             &tenant_id,
             &inv_provider::Warehouse {
-                id: params.warehouse_id,
+                warehouse_id: params.warehouse_id,
                 name: params.name.clone(),
                 active: params.active,
                 version: params.version,
@@ -105,7 +105,7 @@ async fn warehouses_fetch_post(
 ) -> impl Responder {
     info!("warehouses_fetch_post");
 
-    let provider = inv_provider_postgres::warehouse::PostgresWarehouseProvider::new(&dp);
+    let provider = inv_provider_postgres::warehouse::WarehouseProviderPostgres::new(&dp);
 
     let tenant_id = user.tenant().tenant_id();
     let filter = format!("%{}%", params.filter);
