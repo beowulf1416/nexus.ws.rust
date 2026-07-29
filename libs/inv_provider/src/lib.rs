@@ -3,9 +3,11 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
-    pub id: uuid::Uuid,
+    pub item_id: uuid::Uuid,
     pub active: bool,
+    pub version: i32,
     pub created: chrono::DateTime<chrono::Utc>,
+    pub updated: chrono::DateTime<chrono::Utc>,
     pub name: String,
     pub description: String,
     pub sku: String,
@@ -51,11 +53,11 @@ pub struct Location {
 }
 
 pub trait InventoryProvider {
-    fn item_save(
-        &self,
-        tenant_id: &uuid::Uuid,
-        item: &Item,
-    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+    // fn item_save(
+    //     &self,
+    //     tenant_id: &uuid::Uuid,
+    //     item: &Item,
+    // ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
     fn item_set_active(
         &self,
@@ -121,4 +123,10 @@ pub trait LocationsProvider {
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 }
 
-pub trait ItemProvider {}
+pub trait ItemProvider {
+    fn item_save(
+        &self,
+        tenant_id: &uuid::Uuid,
+        item: &Item,
+    ) -> impl Future<Output = Result<(), &'static str>> + Send;
+}
