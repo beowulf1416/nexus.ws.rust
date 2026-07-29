@@ -1,91 +1,69 @@
-use tracing::{
-    info,
-    error,
-    debug
-};
+use tracing::{debug, error, info};
 
 use std::sync::Arc;
 
-use serde::{
-    Serialize,
-    Deserialize
-};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use actix_web::{
-    http, 
-    web, 
-    HttpResponse, 
-    Responder
+use actix_web::{HttpResponse, Responder, http, web};
+
+use crate::{
+    classes::user,
+    endpoints::{ApiResponse, default_option_response},
 };
 
-
-
-
-use crate::endpoints::{
-    ApiResponse,
-    default_option_response
-};
-
-use inv_provider::InventoryProvider;
-
-
+use inv_provider::ItemProvider;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg
-        .service(
-            web::resource("save")
-                .route(web::method(http::Method::OPTIONS).to(default_option_response))
-                .route(web::post().to(item_save_post))
-        )
-    ;
+    cfg.service(
+        web::resource("save")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(item_save_post)),
+    );
 }
-
 
 #[derive(Debug, Deserialize)]
 struct ItemSavePost {
-    tenant_id: uuid::Uuid,
-    id: uuid::Uuid,
+    item_id: uuid::Uuid,
     active: bool,
-    created: chrono::DateTime<chrono::Utc>,
+    version: i32,
     name: String,
     description: String,
     sku: String,
-    upc: String
+    upc: String,
 }
 
 async fn item_save_post(
     dp: web::Data<Arc<database_provider::DatabaseProvider>>,
-    params: web::Json<ItemSavePost>
+    user: user::User,
+    params: web::Json<ItemSavePost>,
 ) -> impl Responder {
     info!("item_save_post");
 
-    let ip = inv_provider_postgres::PostgresInventoryProvider::new(&dp);
+    let ip = inv_provider_postgres::item::ItemProviderPostgres::new(&dp);
+
+    let tenant_id = user.tenant().tenant_id();
 
     let item = inv_provider::Item {
-        id: params.id,
+        item_id: params.item_id,
         active: params.active,
-        created: params.created,
+        version: params.version,
+        // created: params.created,
+        // updated: chrono::Utc::now(),
         name: params.name.clone(),
         description: params.description.clone(),
         sku: params.sku.clone(),
-        upc: params.upc.clone()
+        upc: params.upc.clone(),
     };
 
-    match ip.item_save(
-        &params.tenant_id,
-        &item
-    ).await {
+    match ip.item_save(&tenant_id, &item).await {
         Err(e) => {
             error!("unable to save item: {:?}", e);
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::error("Unable to save item")
-            );
-        },
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("Unable to save item"));
+        }
         Ok(_) => {
-            return HttpResponse::Ok().json(
-                ApiResponse::ok("Item saved successfully")
-            );
+            return HttpResponse::Ok().json(ApiResponse::ok("Item saved successfully"));
         }
     }
 }
