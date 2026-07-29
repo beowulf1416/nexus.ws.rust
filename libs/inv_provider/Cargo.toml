@@ -8,3 +8,5 @@ uuid = { version = "*", features = ["v4"] }
 chrono = "*"
 serde = "*"
 serde_json = "*"
+
+rust_decimal = { version = "*", features = ["serde"] }

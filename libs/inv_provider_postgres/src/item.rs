@@ -1,6 +1,6 @@
 #![allow(clippy::needless_return)]
 
-use inv_provider::Item;
+use inv_provider::{Item, ItemLocation};
 use tracing::{debug, error, info};
 
 use sqlx::{Row, postgres::PgRow, prelude::FromRow};
@@ -24,6 +24,27 @@ impl<'r> FromRow<'r, PgRow> for ItemRow {
             hazardous: row.get("hazardous"),
             flammable: row.get("flammable"),
             esd_sensitive: row.get("esd_sensitive"),
+        }));
+    }
+}
+
+struct ItemLocationRow(pub ItemLocation);
+
+impl<'r> FromRow<'r, PgRow> for ItemLocationRow {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(ItemLocation {
+            location_id: row.get("location_id"),
+            item_id: row.get("item_id"),
+            active: row.get("active"),
+            version: row.get("version"),
+            created: row.get("created"),
+            updated: row.get("updated"),
+            batch: row.get("batch"),
+            lot: row.get("lot"),
+            quantity: row.get("quantity"),
+            dimension_id: row.get("dimension_id"),
+            uom_id: row.get("uom_id"),
+            expiry: row.get("expiry"),
         }));
     }
 }
@@ -122,6 +143,35 @@ impl inv_provider::ItemProvider for ItemProviderPostgres {
                 }
                 Ok(_) => {
                     return Ok(());
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
+
+    async fn locations_fetch(
+        &self,
+        item_id: &uuid::Uuid,
+    ) -> Result<Vec<ItemLocation>, &'static str> {
+        info!("locations_fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, ItemLocationRow>("select * from mm.item_locations_fetch($1);")
+                .bind(item_id)
+                .fetch_all(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error saving location: {:?}", e);
+                    return Err("Error saving location");
+                }
+                Ok(rows) => {
+                    let results = rows
+                        .iter()
+                        .map(|r| r.0.clone())
+                        .collect::<Vec<ItemLocation>>();
+                    return Ok(results);
                 }
             }
         }

@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 tracing = "*"
-sqlx = { version = "*", features = ["postgres", "uuid"] }
+
+rust_decimal = { version = "*", features = ["serde"] }
+sqlx = { version = "*", features = ["postgres", "uuid", "chrono", "macros", "rust_decimal"] }
 
 uuid = { version = "*", features = ["v4"] }
 chrono = "*"

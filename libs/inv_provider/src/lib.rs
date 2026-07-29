@@ -58,30 +58,46 @@ pub struct Location {
     pub pallet: String,
 }
 
-pub trait InventoryProvider {
-    // fn item_save(
-    //     &self,
-    //     tenant_id: &uuid::Uuid,
-    //     item: &Item,
-    // ) -> impl Future<Output = Result<(), &'static str>> + Send;
-
-    fn item_set_active(
-        &self,
-        item_id: &uuid::Uuid,
-        active: &bool,
-    ) -> impl Future<Output = Result<(), &'static str>> + Send;
-
-    // fn items_fetch(
-    //     &self,
-    //     tenant_id: &uuid::Uuid,
-    //     filter: &str,
-    // ) -> impl Future<Output = Result<Vec<Item>, &'static str>> + Send;
-
-    fn item_fetch_by_id(
-        &self,
-        item_id: &uuid::Uuid,
-    ) -> impl Future<Output = Result<Item, &'static str>> + Send;
+#[derive(Debug, Serialize, Clone)]
+pub struct ItemLocation {
+    pub item_id: uuid::Uuid,
+    pub location_id: uuid::Uuid,
+    pub active: bool,
+    pub version: i32,
+    pub created: chrono::DateTime<chrono::Utc>,
+    pub updated: chrono::DateTime<chrono::Utc>,
+    pub batch: String,
+    pub lot: String,
+    pub quantity: rust_decimal::Decimal,
+    pub dimension_id: i32,
+    pub uom_id: i32,
+    pub expiry: Option<chrono::DateTime<chrono::Utc>>,
 }
+
+// pub trait InventoryProvider {
+//     // fn item_save(
+//     //     &self,
+//     //     tenant_id: &uuid::Uuid,
+//     //     item: &Item,
+//     // ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+//     fn item_set_active(
+//         &self,
+//         item_id: &uuid::Uuid,
+//         active: &bool,
+//     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+//     // fn items_fetch(
+//     //     &self,
+//     //     tenant_id: &uuid::Uuid,
+//     //     filter: &str,
+//     // ) -> impl Future<Output = Result<Vec<Item>, &'static str>> + Send;
+
+//     fn item_fetch_by_id(
+//         &self,
+//         item_id: &uuid::Uuid,
+//     ) -> impl Future<Output = Result<Item, &'static str>> + Send;
+// }
 
 pub trait WarehouseProvider {
     fn warehouse_save(
@@ -161,4 +177,9 @@ pub trait ItemProvider {
         item_id: &uuid::Uuid,
         location_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
+
+    fn locations_fetch(
+        &self,
+        item_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<ItemLocation>, &'static str>> + Send;
 }
