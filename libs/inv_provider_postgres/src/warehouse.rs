@@ -129,7 +129,7 @@ impl inv_provider::WarehouseProvider for WarehouseProviderPostgres {
         return Err("No database pool found");
     }
 
-    async fn warehouse_fetch_by_name(
+    async fn fetch_by_name(
         &self,
         tenant_id: &uuid::Uuid,
         name: &str,
@@ -159,7 +159,7 @@ impl inv_provider::WarehouseProvider for WarehouseProviderPostgres {
         return Err("No database pool found");
     }
 
-    async fn warehouse_fetch_by_id(
+    async fn fetch_by_id(
         &self,
         warehouse_id: &uuid::Uuid,
     ) -> Result<inv_provider::Warehouse, &'static str> {
@@ -238,13 +238,13 @@ mod tests {
             assert!(false, "Error setting warehouse active");
         }
 
-        if let Err(e) = provider.warehouse_fetch_by_id(&wh.warehouse_id).await {
+        if let Err(e) = provider.fetch_by_id(&wh.warehouse_id).await {
             error!("Error fetching warehouse by id: {:?}", e);
             assert!(false, "Error fetching warehouse by id");
         }
 
         if let Err(e) = provider
-            .warehouse_fetch_by_name(&tenant_id, &format!("Main Warehouse {}", offset))
+            .fetch_by_name(&tenant_id, &format!("Main Warehouse {}", offset))
             .await
         {
             error!("Error fetching warehouse by name: {:?}", e);

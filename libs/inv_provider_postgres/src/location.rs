@@ -2,7 +2,31 @@
 
 use tracing::{debug, error, info};
 
+use inv_provider::Location;
 use sqlx::{Row, postgres::PgRow, prelude::FromRow};
+
+#[derive(Debug, Clone)]
+struct LocationData(pub Location);
+
+impl<'r> FromRow<'r, PgRow> for LocationData {
+    fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
+        return Ok(Self(inv_provider::Location {
+            location_id: row.get("location_id"),
+            version: row.get("version"),
+            name: row.get("name"),
+            description: row.get("description"),
+            floor: row.get("floor"),
+            level: row.get("level"),
+            section: row.get("section"),
+            aisle: row.get("aisle"),
+            row: row.get("row"),
+            rack: row.get("rack"),
+            shelf: row.get("shelf"),
+            bin: row.get("bin"),
+            pallet: row.get("pallet"),
+        }));
+    }
+}
 
 pub struct LocationsProviderPostgres {
     dp: database_provider::DatabaseProvider,
@@ -28,8 +52,8 @@ impl inv_provider::LocationsProvider for LocationsProviderPostgres {
                 "call mm.location_save($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15);",
             )
             .bind(tenant_id)
-            .bind(warehouse_id)
             .bind(location.location_id)
+            .bind(warehouse_id)
             .bind(location.version)
             .bind(location.name.clone())
             .bind(location.description.clone())
@@ -78,6 +102,69 @@ impl inv_provider::LocationsProvider for LocationsProviderPostgres {
                 }
                 Ok(_) => {
                     return Ok(());
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
+
+    async fn fetch(
+        &self,
+        tenant_id: &uuid::Uuid,
+        warehouse_id: &uuid::Uuid,
+        filter: &str,
+    ) -> Result<Vec<Location>, &'static str> {
+        info!("fetch");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            let filter = format!("%{}%", filter);
+
+            match sqlx::query_as::<_, LocationData>("select * from mm.locations_fetch($1, $2, $3);")
+                .bind(tenant_id)
+                .bind(warehouse_id)
+                .bind(&filter)
+                .fetch_all(&pool)
+                .await
+            {
+                Err(e) => {
+                    error!("Error setting location active: {:?}", e);
+                    return Err("Error setting location active");
+                }
+                Ok(rows) => {
+                    let locations = rows.iter().map(|r| r.0.clone()).collect();
+                    return Ok(locations);
+                }
+            }
+        }
+
+        return Err("No database pool found");
+    }
+
+    async fn fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        warehouse_id: &uuid::Uuid,
+        name: &str,
+    ) -> Result<Location, &'static str> {
+        info!("fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, LocationData>(
+                "select * from mm.location_fetch_by_name($1, $2, $3);",
+            )
+            .bind(tenant_id)
+            .bind(warehouse_id)
+            .bind(name)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error setting location active: {:?}", e);
+                    return Err("Error setting location active");
+                }
+                Ok(row) => {
+                    return Ok(row.0.clone());
                 }
             }
         }
@@ -147,8 +234,8 @@ mod tests {
             location_id: location_id,
             version: 0,
             // warehouse_id: warehouse_id,
-            name: "Main Location".to_string(),
-            description: "Main Location".to_string(),
+            name: format!("Main Location {}", offset),
+            description: format!("Main Location {}", offset),
             floor: "".to_string(),
             level: "".to_string(),
             section: "".to_string(),
@@ -166,6 +253,11 @@ mod tests {
         {
             error!("Error saving location: {:?}", e);
             assert!(false, "Error saving location");
+        }
+
+        if let Err(e) = lpp.fetch(&tenant_id, &warehouse_id, "%").await {
+            error!("Error fetching locations: {:?}", e);
+            assert!(false, "Error fetching locations");
         }
     }
 }
