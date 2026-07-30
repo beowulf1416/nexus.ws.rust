@@ -19,6 +19,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
         web::resource("save")
             .route(web::method(http::Method::OPTIONS).to(default_option_response))
             .route(web::post().to(location_save_post)),
+    )
+    .service(
+        web::resource("fetch")
+            .route(web::method(http::Method::OPTIONS).to(default_option_response))
+            .route(web::post().to(locations_fetch_post)),
     );
 }
 
@@ -53,6 +58,43 @@ async fn location_save_post(
                 true,
                 "Location saved successfully",
                 None,
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct LocationsFetchPost {
+    warehouse_id: uuid::Uuid,
+    filter: String,
+}
+
+async fn locations_fetch_post(
+    dp: web::Data<Arc<database_provider::DatabaseProvider>>,
+    user: user::User,
+    params: web::Json<LocationsFetchPost>,
+) -> impl Responder {
+    info!("locations_fetch_post");
+
+    let provider = inv_provider_postgres::location::LocationsProviderPostgres::new(&dp);
+
+    let tenant_id = user.tenant().tenant_id();
+    let filter = format!("%{}%", params.filter);
+
+    match provider
+        .fetch(&tenant_id, &params.warehouse_id, &filter)
+        .await
+    {
+        Err(e) => {
+            error!("unable to fetch locations: {:?}", e);
+            return HttpResponse::InternalServerError()
+                .json(ApiResponse::error("Unable to fetch locations"));
+        }
+        Ok(locations) => {
+            return HttpResponse::Ok().json(ApiResponse::new(
+                true,
+                "Location fetched successfully",
+                Some(json!({ "locations": locations })),
             ));
         }
     }
