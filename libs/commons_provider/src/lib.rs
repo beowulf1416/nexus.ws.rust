@@ -18,19 +18,19 @@ pub struct Currency {
 
 #[derive(Serialize)]
 pub struct Gender {
-    pub id: i16,
+    pub gender_id: i16,
     pub name: String,
 }
 
 #[derive(Serialize)]
 pub struct Dimension {
-    pub id: i16,
+    pub dimension_id: i16,
     pub name: String,
 }
 
 #[derive(Serialize)]
 pub struct Uom {
-    pub id: i32,
+    pub uom_id: i64,
     pub dimension_id: i16,
     pub name: String,
     pub symbol: Option<String>,

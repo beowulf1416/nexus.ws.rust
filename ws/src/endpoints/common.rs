@@ -147,6 +147,7 @@ async fn uoms_dimension_fetch_post(
     params: web::Json<UomsDimensionFetchPost>,
 ) -> impl Responder {
     info!("uoms_dimension_fetch_post");
+    debug!("params: {:?}", params);
 
     let cp = commons_provider_postgres::PostgresCommonsProvider::new(&dp);
     match cp.fetch_uoms_by_dimension_id(&params.dimension_id).await {
@@ -160,7 +161,7 @@ async fn uoms_dimension_fetch_post(
                 true,
                 "successfully retrieved uoms",
                 Some(json!({
-                    "uoms_dimension": uoms
+                    "uoms": uoms
                 })),
             ));
         }

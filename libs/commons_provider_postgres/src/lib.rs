@@ -109,7 +109,7 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                             let name: String = r.get("name");
 
                             return commons_provider::Gender {
-                                id: gender_id,
+                                gender_id: gender_id,
                                 name,
                             };
                         })
@@ -144,7 +144,7 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                             let name: String = r.get("name");
 
                             return commons_provider::Dimension {
-                                id: dimension_id,
+                                dimension_id: dimension_id,
                                 name,
                             };
                         })
@@ -175,13 +175,13 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                     let uoms: Vec<commons_provider::Uom> = rows
                         .iter()
                         .map(|r| {
-                            let uom_id: i32 = r.get("uom_id");
+                            let uom_id: i64 = r.get("uom_id");
                             let dimension_id: i16 = r.get("dimension_id");
                             let name: String = r.get("name");
                             let symbol: Option<String> = r.get("symbol");
 
                             return commons_provider::Uom {
-                                id: uom_id,
+                                uom_id: uom_id,
                                 dimension_id,
                                 name,
                                 symbol,
@@ -218,13 +218,13 @@ impl commons_provider::CommonsProvider for PostgresCommonsProvider {
                     let uoms: Vec<commons_provider::Uom> = rows
                         .iter()
                         .map(|r| {
-                            let uom_id: i32 = r.get("uom_id");
+                            let uom_id: i64 = r.get("uom_id");
                             // let dimension_id: i16 = r.get("dimension_id");
                             let name: String = r.get("name");
                             let symbol: Option<String> = r.get("symbol");
 
                             return commons_provider::Uom {
-                                id: uom_id,
+                                uom_id: uom_id,
                                 dimension_id: dimension_id.clone(),
                                 name,
                                 symbol,
