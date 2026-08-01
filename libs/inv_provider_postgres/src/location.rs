@@ -39,7 +39,7 @@ impl LocationsProviderPostgres {
 }
 
 impl inv_provider::LocationsProvider for LocationsProviderPostgres {
-    async fn location_save(
+    async fn save(
         &self,
         tenant_id: &uuid::Uuid,
         warehouse_id: &uuid::Uuid,
@@ -247,10 +247,7 @@ mod tests {
             pallet: "".to_string(),
         };
 
-        if let Err(e) = lpp
-            .location_save(&tenant_id, &warehouse_id, &location)
-            .await
-        {
+        if let Err(e) = lpp.save(&tenant_id, &warehouse_id, &location).await {
             error!("Error saving location: {:?}", e);
             assert!(false, "Error saving location");
         }

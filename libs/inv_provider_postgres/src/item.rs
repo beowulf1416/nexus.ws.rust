@@ -127,13 +127,27 @@ impl inv_provider::ItemProvider for ItemProviderPostgres {
         &self,
         item_id: &uuid::Uuid,
         location_id: &uuid::Uuid,
+        version: &i32,
+        batch: String,
+        lot: String,
+        quantity: rust_decimal::Decimal,
+        dimension_id: &i32,
+        uom_id: &i64,
+        expiry: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<(), &'static str> {
         info!("location_save");
 
         if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-            match sqlx::query("call mm.item_location_save($1,$2);")
+            match sqlx::query("call mm.item_location_save($1,$2,$3,$4,$5,$6,$7::smallint,$8,$9);")
                 .bind(item_id)
                 .bind(location_id)
+                .bind(version)
+                .bind(batch)
+                .bind(lot)
+                .bind(quantity)
+                .bind(dimension_id)
+                .bind(uom_id)
+                .bind(expiry)
                 .execute(&pool)
                 .await
             {
@@ -163,8 +177,8 @@ impl inv_provider::ItemProvider for ItemProviderPostgres {
                 .await
             {
                 Err(e) => {
-                    error!("Error saving location: {:?}", e);
-                    return Err("Error saving location");
+                    error!("Error fetching location: {:?}", e);
+                    return Err("Error fetching location");
                 }
                 Ok(rows) => {
                     let results = rows
@@ -238,11 +252,26 @@ mod tests {
             assert!(false, "unable to fetch inventory items");
         }
 
-        let warehouse_id = wpp
-            .warehouses_fetch(&tenant_id, &"Main Warehouse%")
-            .await
-            .unwrap()[0]
-            .warehouse_id;
+        let warehouse_id = uuid::Uuid::new_v4();
+        let wh = inv_provider::Warehouse {
+            warehouse_id: warehouse_id,
+            active: true,
+            version: 0,
+            name: format!("Main Warehouse {}", offset),
+            description: format!("Main Warehouse {}", offset),
+            address: inv_provider::Address {
+                street: format!("street_{}", offset),
+                city: format!("city_{}", offset),
+                state: format!("state_{}", offset),
+                zip_code: format!("zip_{}", offset),
+                country_id: 840, // USA
+            },
+        };
+
+        if let Err(e) = wpp.warehouse_save(&tenant_id, &wh).await {
+            error!("Error saving warehouse: {:?}", e);
+            assert!(false, "Error saving warehouse");
+        }
 
         let location_id = uuid::Uuid::new_v4();
         let location = Location {
@@ -262,15 +291,25 @@ mod tests {
             pallet: "".to_string(),
         };
 
-        if let Err(e) = lpp
-            .location_save(&tenant_id, &warehouse_id, &location)
-            .await
-        {
+        if let Err(e) = lpp.save(&tenant_id, &warehouse_id, &location).await {
             error!("Error saving location: {:?}", e);
             assert!(false, "Error saving location");
         }
 
-        if let Err(e) = ipp.location_save(&item_id, &location_id).await {
+        if let Err(e) = ipp
+            .location_save(
+                &item_id,
+                &location_id,
+                &0,
+                offset.to_string(),
+                offset.to_string(),
+                rust_decimal::Decimal::from(offset),
+                &1,
+                &1,
+                None,
+            )
+            .await
+        {
             error!("unable to save item location: {:?}", e);
             assert!(false, "unable to save item location");
         }

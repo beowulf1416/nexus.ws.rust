@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub mod transactions;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
     pub item_id: uuid::Uuid,
@@ -131,7 +133,7 @@ pub trait WarehouseProvider {
 }
 
 pub trait LocationsProvider {
-    fn location_save(
+    fn save(
         &self,
         tenant_id: &uuid::Uuid,
         warehouse_id: &uuid::Uuid,
@@ -176,6 +178,13 @@ pub trait ItemProvider {
         &self,
         item_id: &uuid::Uuid,
         location_id: &uuid::Uuid,
+        version: &i32,
+        batch: String,
+        lot: String,
+        quantity: rust_decimal::Decimal,
+        dimension_id: &i32,
+        uom_id: &i64,
+        expiry: Option<chrono::DateTime<chrono::Utc>>,
     ) -> impl Future<Output = Result<(), &'static str>> + Send;
 
     fn locations_fetch(

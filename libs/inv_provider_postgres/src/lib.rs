@@ -2,6 +2,7 @@
 
 pub mod item;
 pub mod location;
+pub mod transactions;
 pub mod warehouse;
 
 // use tracing::{debug, error, info};
