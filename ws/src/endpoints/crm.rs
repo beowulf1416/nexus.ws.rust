@@ -80,7 +80,7 @@ async fn partner_save_post(
 ) -> impl Responder {
     info!("partner_save_post");
 
-    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+    let crm_provider = crm_provider_postgres::CrmProviderPostgres::new(&dp);
 
     let partner = crm_provider::Partner {
         partner_id: params.partner_id.clone(),
@@ -123,7 +123,7 @@ async fn partners_fetch_post(
 ) -> impl Responder {
     info!("partners_fetch_post");
 
-    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+    let crm_provider = crm_provider_postgres::CrmProviderPostgres::new(&dp);
 
     let tenant_id = user.tenant().tenant_id();
     let filter = format!("%{}%", params.filter);
@@ -158,7 +158,7 @@ async fn partner_fetch_id_post(
 ) -> impl Responder {
     info!("partner_fetch_id_post");
 
-    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+    let crm_provider = crm_provider_postgres::CrmProviderPostgres::new(&dp);
 
     match crm_provider.partner_fetch_by_id(&params.partner_id).await {
         Err(e) => {
@@ -191,7 +191,7 @@ async fn partners_set_active_post(
 ) -> impl Responder {
     info!("partners_set_active_post");
 
-    let crm_provider = crm_provider_postgres::PostgresCrmProvider::new(&dp);
+    let crm_provider = crm_provider_postgres::CrmProviderPostgres::new(&dp);
     match crm_provider
         .partners_set_active(&params.partner_ids, params.active)
         .await
