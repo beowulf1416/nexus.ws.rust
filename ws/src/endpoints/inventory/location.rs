@@ -45,7 +45,7 @@ async fn location_save_post(
     let tenant_id = user.tenant().tenant_id();
 
     match provider
-        .location_save(&tenant_id, &params.warehouse_id, &params.location)
+        .save(&tenant_id, &params.warehouse_id, &params.location)
         .await
     {
         Err(e) => {
