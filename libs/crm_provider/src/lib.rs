@@ -59,6 +59,12 @@ pub trait CrmProvider {
         partner_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<Partner, &'static str>> + Send;
 
+    fn partner_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> impl Future<Output = Result<Partner, &'static str>> + Send;
+
     fn partners_set_active(
         &self,
         partner_ids: &Vec<uuid::Uuid>,

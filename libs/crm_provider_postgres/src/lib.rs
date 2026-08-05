@@ -27,17 +27,17 @@ impl<'r> FromRow<'r, PgRow> for Partnerdata {
     }
 }
 
-pub struct PostgresCrmProvider {
+pub struct CrmProviderPostgres {
     dp: database_provider::DatabaseProvider,
 }
 
-impl PostgresCrmProvider {
+impl CrmProviderPostgres {
     pub fn new(dp: &database_provider::DatabaseProvider) -> Self {
         return Self { dp: dp.clone() };
     }
 }
 
-impl crm_provider::CrmProvider for PostgresCrmProvider {
+impl crm_provider::CrmProvider for CrmProviderPostgres {
     async fn partner_save(
         &self,
         tenant_id: &uuid::Uuid,
@@ -130,6 +130,36 @@ impl crm_provider::CrmProvider for PostgresCrmProvider {
         }
     }
 
+    async fn partner_fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> Result<crm_provider::Partner, &'static str> {
+        info!("partner_fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, Partnerdata>(
+                "select * from crm.partner_fetch_by_name($1, $2);",
+            )
+            .bind(tenant_id)
+            .bind(name)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching partner: {:?}", e);
+                    return Err("Error fetching partner");
+                }
+                Ok(r) => {
+                    return Ok(r.0.clone());
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
+
     async fn partners_set_active(
         &self,
         partner_ids: &Vec<uuid::Uuid>,
@@ -178,7 +208,7 @@ mod tests {
         let dp = actix_web::web::Data::new(std::sync::Arc::new(db_provider));
 
         let tp = tenants_provider_postgres::PostgresTenantsProvider::new(&dp);
-        let cp = PostgresCrmProvider::new(&dp);
+        let cp = CrmProviderPostgres::new(&dp);
 
         let partner_id = uuid::Uuid::new_v4();
 
@@ -202,6 +232,19 @@ mod tests {
         if let Err(e) = cp.partner_save(&tenant_id, &partner).await {
             error!("Error saving partner record: {:?}", e);
             assert!(false, "Failed to save partner record");
+        }
+
+        if let Err(e) = cp.partner_fetch_by_id(&partner_id).await {
+            error!("Error fetching partner record: {:?}", e);
+            assert!(false, "Failed to fetch partner record");
+        }
+
+        if let Err(e) = cp
+            .partner_fetch_by_name(&tenant_id, &partner.business_name)
+            .await
+        {
+            error!("Error fetching partner record: {:?}", e);
+            assert!(false, "Failed to fetch partner record");
         }
 
         if let Err(e) = cp.partners_set_active(&vec![partner_id], true).await {
