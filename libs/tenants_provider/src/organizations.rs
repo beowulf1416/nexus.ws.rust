@@ -50,4 +50,10 @@ pub trait OrganizationsProvider {
         &self,
         org_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<OrganizationData, &'static str>> + Send;
+
+    fn fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> impl Future<Output = Result<OrganizationData, &'static str>> + Send;
 }

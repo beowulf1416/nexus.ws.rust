@@ -169,6 +169,36 @@ impl tenants_provider::organizations::OrganizationsProvider for OrganizationsPro
             return Err("Unable to get pool for 'main'");
         }
     }
+
+    async fn fetch_by_name(
+        &self,
+        tenant_id: &uuid::Uuid,
+        name: &str,
+    ) -> Result<tenants_provider::organizations::OrganizationData, &'static str> {
+        info!("fetch_by_name");
+
+        if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
+            match sqlx::query_as::<_, OrganizationDataItem>(
+                "select * from organizations.organization_fetch_by_name($1,$2);",
+            )
+            .bind(tenant_id)
+            .bind(name)
+            .fetch_one(&pool)
+            .await
+            {
+                Err(e) => {
+                    error!("Error fetching organizations: {:?}", e);
+                    return Err("Error fetching organizations");
+                }
+                Ok(row) => {
+                    return Ok(row.0.clone());
+                }
+            }
+        } else {
+            error!("No Postgres pool found for 'main'");
+            return Err("Unable to get pool for 'main'");
+        }
+    }
 }
 
 #[cfg(test)]
