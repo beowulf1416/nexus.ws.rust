@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 tracing = "*"
 
+serde = "*"
 rust_decimal = { version = "*", features = ["serde"] }
 sqlx = { version = "*", features = ["postgres", "uuid", "chrono", "macros", "rust_decimal"] }
 
@@ -25,3 +26,6 @@ actix-web = "*"
 
 tenants_provider = { path = "../tenants_provider" }
 tenants_provider_postgres = { path = "../tenants_provider_postgres" }
+
+crm_provider = { path = "../crm_provider" }
+crm_provider_postgres = { path = "../crm_provider_postgres" }
