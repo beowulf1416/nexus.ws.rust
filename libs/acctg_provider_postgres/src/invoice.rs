@@ -28,14 +28,6 @@ struct InvoiceItemDerived {
 
 impl<'r> FromRow<'r, PgRow> for InvoiceItemDerived {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
-        // return Ok(Self(InvoiceItem {
-        //     invoice_item_id: row.get("invoice_item_id"),
-        //     version: row.get("version"),
-        //     description: row.get("description"),
-        //     quantity: row.get("quantity"),
-        //     unit_price: row.get("unit_price"),
-        //     currency_id: row.get("currency_id"),
-        // }));
         return Ok(Self {
             invoice_item_id: row.get("invoice_item_id"),
             version: row.get("version"),
@@ -69,32 +61,6 @@ struct InvoiceData(pub Invoice);
 impl<'r> FromRow<'r, PgRow> for InvoiceData {
     fn from_row(row: &'r PgRow) -> sqlx::Result<Self> {
         debug!("row: {:?}", row);
-
-        // let items_derived: Vec<InvoiceItemDerived> = row.get("items");
-        // let items = items_derived
-        //     .iter()
-        //     .map(|r| InvoiceItem {
-        //         item_id: r.0.item_id,
-        //         version: r.0.version,
-        //         description: r.0.description,
-        //         quantity: r.0.quantity,
-        //         unit_price: r.0.unit_price,
-        //         currency_id: r.0.currency_id,
-        //     })
-        //     .collect::<Vec<InvoiceItem>>();
-
-        // let items = row
-        //     .get::<VecInvoiceItemDerived>("items")
-        //     .iter()
-        //     .map(|item| InvoiceItem {
-        //         item_id: item.0.item_id,
-        //         version: item.0.version,
-        //         description: item.0.description,
-        //         quantity: item.0.quantity,
-        //         unit_price: item.0.unit_price,
-        //         currency_id: item.0.currency_id,
-        //     })
-        //     .collect::<Vec<InvoiceItem>>();
 
         return Ok(Self(Invoice {
             invoice_id: row.get("invoice_id"),
@@ -265,39 +231,51 @@ impl InvoiceProvider for InvoiceProviderPostgres {
                 })
                 .collect::<Vec<InvoiceItemDerived>>();
 
-            match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7,$8,$9);")
-                .bind(tenant_id)
-                .bind(&invoice.invoice_id)
-                .bind(&invoice.invoice_type_id)
-                .bind(&invoice.account_id)
-                .bind(&invoice.org_id)
-                .bind(&invoice.partner_id)
-                .bind(&invoice.description)
-                .bind(&invoice.due_date)
-                // .bind(&derived_items)
-                .bind(&invoice.version)
-                .execute(&pool)
-                .await
-            {
-                Ok(_) => {
-                    match sqlx::query("call acctg.invoice_items_save($1,$2);")
+            match pool.begin().await {
+                Err(e) => {
+                    error!("Error starting transaction: {:?}", e);
+                    return Err("Error starting transaction");
+                }
+                Ok(mut tx) => {
+                    match sqlx::query("call acctg.invoice_save($1,$2,$3,$4,$5,$6,$7,$8,$9);")
+                        .bind(tenant_id)
                         .bind(&invoice.invoice_id)
-                        .bind(&derived_items)
-                        .execute(&pool)
+                        .bind(&invoice.invoice_type_id)
+                        .bind(&invoice.account_id)
+                        .bind(&invoice.org_id)
+                        .bind(&invoice.partner_id)
+                        .bind(&invoice.description)
+                        .bind(&invoice.due_date)
+                        // .bind(&derived_items)
+                        .bind(&invoice.version)
+                        .execute(&mut *tx)
                         .await
                     {
-                        Ok(_) => {
-                            return Ok(());
-                        }
                         Err(e) => {
-                            error!("Error saving invoice items: {:?}", e);
-                            return Err("Error saving invoice items");
+                            error!("Error saving invoice: {:?}", e);
+                            return Err("Error saving invoice");
+                        }
+                        Ok(_) => {
+                            match sqlx::query("call acctg.invoice_items_save($1,$2);")
+                                .bind(&invoice.invoice_id)
+                                .bind(&derived_items)
+                                .execute(&mut *tx)
+                                .await
+                            {
+                                Err(e) => {
+                                    error!("Error saving invoice items: {:?}", e);
+                                    return Err("Error saving invoice items");
+                                }
+                                Ok(_) => {
+                                    if let Err(e) = tx.commit().await {
+                                        error!("Error committing transaction: {:?}", e);
+                                        return Err("Error committing transaction");
+                                    }
+                                    return Ok(());
+                                }
+                            }
                         }
                     }
-                }
-                Err(e) => {
-                    error!("Error saving invoice: {:?}", e);
-                    return Err("Error saving invoice");
                 }
             }
         } else {
@@ -305,47 +283,6 @@ impl InvoiceProvider for InvoiceProviderPostgres {
             return Err("Unable to get pool for 'main'");
         }
     }
-
-    // async fn invoice_items_save(
-    //     &self,
-    //     invoice_id: &uuid::Uuid,
-    //     items: &Vec<InvoiceItem>,
-    // ) -> Result<(), &'static str> {
-    //     info!("invoice_items_save");
-
-    //     if let Some(database_provider::DatabaseType::Postgres(pool)) = self.dp.get_pool("main") {
-    //         let derived_items = items
-    //             .iter()
-    //             .map(|item| InvoiceItemDerived {
-    //                 item_id: item.item_id,
-    //                 description: item.description.clone(),
-    //                 quantity: item.quantity,
-    //                 // uom_id: item.uom_id,
-    //                 unit_price: item.unit_price,
-    //                 // total: item.total,
-    //                 currency_id: item.currency_id,
-    //             })
-    //             .collect::<Vec<InvoiceItemDerived>>();
-
-    //         match sqlx::query("call acctg.invoice_items_save($1,$2);")
-    //             .bind(&invoice_id)
-    //             .bind(&derived_items)
-    //             .execute(&pool)
-    //             .await
-    //         {
-    //             Ok(_) => {
-    //                 return Ok(());
-    //             }
-    //             Err(e) => {
-    //                 error!("Error saving invoice items: {:?}", e);
-    //                 return Err("Error saving invoice items");
-    //             }
-    //         }
-    //     } else {
-    //         error!("No Postgres pool found for 'main'");
-    //         return Err("Unable to get pool for 'main'");
-    //     }
-    // }
 }
 
 #[cfg(test)]
